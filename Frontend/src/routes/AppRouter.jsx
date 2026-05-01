@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { AddWarrantyPage } from "@/pages/AddWarrantyPage";
+import { AllItemsPage } from "@/pages/AllItemsPage";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { LoginPage } from "@/pages/LoginPage";
 import { SignupPage } from "@/pages/SignupPage";
@@ -16,6 +17,7 @@ export function AppRouter() {
       <Route element={<ProtectedRoute />}>
         <Route element={<AppShell />}>
           <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/items" element={<AllItemsPage />} />
           <Route path="/add-warranty" element={<AddWarrantyPage />} />
         </Route>
       </Route>

@@ -1,10 +1,11 @@
-import { LayoutDashboard, PlusSquare, ShieldCheck } from "lucide-react";
+import { Boxes, LayoutDashboard, PlusSquare, ShieldCheck } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { appConfig } from "@/config/appConfig";
 import { cn } from "@/utils/cn";
 
 const links = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/items", label: "All Items", icon: Boxes },
   { to: "/add-warranty", label: "Add Warranty", icon: PlusSquare },
 ];
 
