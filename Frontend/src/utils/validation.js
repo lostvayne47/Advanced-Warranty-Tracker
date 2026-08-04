@@ -44,5 +44,22 @@ export function validateWarranty(values) {
     }
   }
 
+  if (values.coverageStartDate && values.purchaseDate) {
+    const coverageStart = new Date(values.coverageStartDate);
+    const purchase = new Date(values.purchaseDate);
+
+    if (coverageStart < purchase) {
+      errors.coverageStartDate = "Coverage start date cannot be before the purchase date.";
+    }
+  }
+
+  if (values.purchasePrice && Number(values.purchasePrice) < 0) {
+    errors.purchasePrice = "Purchase price cannot be negative.";
+  }
+
+  if (values.currency && !/^[A-Za-z]{3}$/.test(values.currency)) {
+    errors.currency = "Use a three-letter currency code, such as INR.";
+  }
+
   return errors;
 }

@@ -36,3 +36,19 @@ export async function signup(values) {
   persistSession(data);
   return data;
 }
+
+export function beginGoogleSignIn() {
+  if (!appConfig.apiBaseUrl) {
+    throw new Error("Google sign-in will be available after the Spring Boot API is configured.");
+  }
+
+  window.location.assign(`${appConfig.apiBaseUrl}/auth/google/start?purpose=signin`);
+}
+
+export function beginGmailConnection() {
+  if (!appConfig.apiBaseUrl) {
+    throw new Error("Gmail connection will be available after the Spring Boot API is configured.");
+  }
+
+  window.location.assign(`${appConfig.apiBaseUrl}/gmail/connect`);
+}

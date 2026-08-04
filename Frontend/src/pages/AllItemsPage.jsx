@@ -23,7 +23,17 @@ export function AllItemsPage() {
     }
 
     return warranties.filter((warranty) =>
-      [warranty.productName, warranty.notes, warranty.fileName]
+      [
+        warranty.productName,
+        warranty.brand,
+        warranty.category,
+        warranty.modelNumber,
+        warranty.serialNumber,
+        warranty.warrantyProvider,
+        warranty.retailerName,
+        warranty.notes,
+        warranty.fileName,
+      ]
         .filter(Boolean)
         .some((value) => value.toLowerCase().includes(normalizedQuery)),
     );
@@ -81,6 +91,7 @@ export function AllItemsPage() {
                     <th className="px-6 py-4 font-semibold">Expiry</th>
                     <th className="px-6 py-4 font-semibold">Status</th>
                     <th className="px-6 py-4 font-semibold">Remaining</th>
+                    <th className="px-6 py-4 font-semibold">&nbsp;</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -111,6 +122,11 @@ export function AllItemsPage() {
                           )}
                         >
                           {remainingDays < 0 ? `${Math.abs(remainingDays)} days ago` : `${remainingDays} days`}
+                        </td>
+                        <td className="px-6 py-5 text-right">
+                          <Link to={`/warranties/${warranty.id}/edit`} className="font-semibold text-brand hover:text-brand-light">
+                            Edit
+                          </Link>
                         </td>
                       </tr>
                     );

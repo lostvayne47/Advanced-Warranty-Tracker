@@ -5,6 +5,7 @@ import { AuthLayout } from "@/components/layout/AuthLayout";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useAuth } from "@/hooks/useAuth";
+import { beginGoogleSignIn } from "@/services/authService";
 import { validateAuth } from "@/utils/validation";
 
 const initialValues = {
@@ -19,6 +20,14 @@ export function LoginPage() {
   const [values, setValues] = useState(initialValues);
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  function handleGoogleSignIn() {
+    try {
+      beginGoogleSignIn();
+    } catch (error) {
+      toast.error(error.message);
+    }
+  }
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -67,6 +76,14 @@ export function LoginPage() {
         />
         <Button type="submit" className="w-full" isLoading={isSubmitting}>
           Sign in
+        </Button>
+        <div className="flex items-center gap-3 text-xs text-slate-500">
+          <span className="h-px flex-1 bg-white/10" />
+          OR
+          <span className="h-px flex-1 bg-white/10" />
+        </div>
+        <Button type="button" variant="secondary" className="w-full" onClick={handleGoogleSignIn}>
+          Continue with Google
         </Button>
       </form>
       <p className="mt-6 text-sm text-slate-300">
