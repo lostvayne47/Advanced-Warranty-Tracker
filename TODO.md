@@ -12,7 +12,7 @@ the packaged server passes a real HTTP signup → multipart create → multipart
 update → read → delete smoke test. Tests use H2; Supabase verification remains
 in milestone 2. Setup instructions: [Backend/README.md](Backend/README.md).
 
-## 2. Supabase database and private invoice storage
+## 2. Supabase database and private invoice storage - in progress
 - [ ] Configure Supabase PostgreSQL and apply migrations.
 - [ ] Implement validated invoice uploads to the private bucket.
 - [ ] Persist attachment metadata and provide authorized signed download URLs.
