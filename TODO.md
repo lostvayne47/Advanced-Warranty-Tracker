@@ -39,10 +39,17 @@ a local Storage fixture. Incremental changes and resumption notes are saved in
 [HANDOFF.md](HANDOFF.md).
 
 ## 4. Verify and deploy the first release - in progress
-- [ ] Verify signup → add → edit → view receipt → delete end to end.
-- [ ] Verify separate users cannot access one another's warranties or receipts.
+- [x] Verify signup → add → edit → view receipt → delete against packaged app, PostgreSQL, and local Storage fixture.
+- [x] Verify user isolation and private receipt access in the local release suite.
+- [x] Prepare bundled frontend/API container, health checks, CI workflow, and deployment runbook.
+- [ ] Build and verify the Docker container on a Docker-enabled host.
 - [ ] Configure production secrets, origins, database, and hosting.
 - [ ] Deploy and smoke-test the release.
+
+Local verification passed: 22 backend tests and 4 release browser tests, plus
+4 frontend unit tests and 20 mocked-API browser tests. Hosted Supabase checks
+remain pending under task 2. Follow [DEPLOYMENT.md](DEPLOYMENT.md) for setup,
+deployment, smoke checks, and rollback. Docker and CI have not yet been executed.
 
 ## 5. Subsequent milestones
 - [ ] Implement OCR extraction with user review before saving.

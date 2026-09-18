@@ -11,13 +11,15 @@ FROM eclipse-temurin:21-jdk-jammy AS backend
 WORKDIR /work/Backend
 COPY Backend/ ./
 COPY --from=frontend /work/Frontend/dist /work/Frontend/dist
-RUN chmod +x mvnw && ./mvnw -q -Dmaven.test.skip=true -Pbundle-frontend package
+RUN sed -i 's/\r$//' mvnw && chmod +x mvnw \
+    && ./mvnw -q -Dmaven.test.skip=true -Pbundle-frontend package
 
 FROM eclipse-temurin:21-jre-jammy AS runtime
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl fontconfig \
     && rm -rf /var/lib/apt/lists/* \
-    && useradd --system --uid 10001 --create-home appuser
+    && groupadd --system --gid 10001 appuser \
+    && useradd --system --uid 10001 --gid 10001 --create-home appuser
 WORKDIR /app
 COPY --from=backend --chown=10001:10001 /work/Backend/target/backend-0.0.1-SNAPSHOT.jar /app/app.jar
 USER 10001:10001

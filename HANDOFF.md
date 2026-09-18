@@ -15,11 +15,16 @@ Milestones 1-3 are implemented; do not rebuild them.
    Passed: 22 backend tests and 4 release browser tests (desktop/mobile),
    including real packaged API, PostgreSQL, receipt replacement/cleanup,
    user isolation, and minimal health endpoints. Storage remains a fixture.
-2. In progress: Docker deployment (default; no hosting choice received yet),
+2. Prepared: Docker deployment (default; no hosting choice received yet),
    minimal public health/readiness checks, same-origin bundled SPA routes,
    release workflow/docs. Docker is not installed locally.
-3. Pending: deployment runbook and Docker build verification; hosted deployment depends on user
-   hosting selection and Supabase setup. No hosted credentials found yet.
+3. Complete: DEPLOYMENT.md covers secrets, Compose startup, HTTPS proxy,
+   hosted acceptance checks, repeatable tests, and rollback. Added explicit
+   runtime group and shell-script LF handling for builds from Windows checkouts.
+4. Pending: Docker build verification and actual hosted deployment. Docker is
+   unavailable locally; no hosted credentials or target have been provided.
+   Next: on a Docker-enabled host, follow DEPLOYMENT.md and create/configure
+   Supabase using Database/SUPABASE_SETUP.md. Do not claim a live deployment.
 
 ## Latest request: recheck remaining task 3
 - Rechecked delete confirmation/retry, signed invoice viewing/refresh, and
@@ -28,8 +33,8 @@ Milestones 1-3 are implemented; do not rebuild them.
   the 20-test desktop/mobile browser run reports passed with no failed tests
   in Frontend/test-results/.last-run.json.
 - Task 4 files are preserved as incremental work. Docker is unavailable locally;
-  the container and GitHub workflow have not been executed. Deployment docs and
-  live Supabase/hosting setup remain to be completed when task 4 resumes.
+  the container and GitHub workflow have not been executed. Deployment docs are
+  now written; live Supabase/hosting setup remains pending.
 
 ## Existing state
 - Milestone 1 implemented: Spring Boot JWT authentication and user-scoped CRUD.
