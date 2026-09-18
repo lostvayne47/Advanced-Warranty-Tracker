@@ -1,0 +1,26 @@
+services:
+  app:
+    build: .
+    image: warranty-tracker:${RELEASE_TAG:-local}
+    ports:
+      - "127.0.0.1:${APP_PORT:-8080}:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: supabase
+      PORT: 8080
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET}
+      SUPABASE_URL: ${SUPABASE_URL:?Set SUPABASE_URL}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:?Set SUPABASE_SERVICE_ROLE_KEY}
+      SUPABASE_DB_URL: ${SUPABASE_DB_URL:?Set SUPABASE_DB_URL}
+      SUPABASE_DB_USERNAME: ${SUPABASE_DB_USERNAME:?Set SUPABASE_DB_USERNAME}
+      SUPABASE_DB_PASSWORD: ${SUPABASE_DB_PASSWORD:?Set SUPABASE_DB_PASSWORD}
+      CORS_ORIGINS: ${CORS_ORIGINS:?Set CORS_ORIGINS to the public HTTPS origin}
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=256m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 1g
+    stop_grace_period: 40s

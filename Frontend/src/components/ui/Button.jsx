@@ -7,6 +7,7 @@ const variants = {
   secondary:
     "bg-white/10 text-white ring-1 ring-inset ring-white/10 hover:bg-white/15",
   ghost: "bg-transparent text-slate-300 hover:bg-white/10",
+  danger: "bg-rose-500/20 text-rose-200 ring-1 ring-inset ring-rose-400/30 hover:bg-rose-500/30",
 };
 
 export function Button({ children, className, variant = "primary", isLoading = false, ...props }) {
@@ -17,8 +18,9 @@ export function Button({ children, className, variant = "primary", isLoading = f
         variants[variant],
         className,
       )}
-      disabled={isLoading || props.disabled}
       {...props}
+      disabled={isLoading || props.disabled}
+      aria-busy={isLoading || undefined}
     >
       {isLoading ? <LoaderCircle className="h-4 w-4 animate-spin" /> : null}
       {children}

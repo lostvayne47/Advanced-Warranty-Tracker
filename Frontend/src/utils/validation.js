@@ -1,3 +1,5 @@
+import { validateInvoiceFile } from "./invoiceValidation.js";
+
 export function validateAuth(values, mode = "login") {
   const errors = {};
 
@@ -11,6 +13,8 @@ export function validateAuth(values, mode = "login") {
     errors.password = "Password is required.";
   } else if (values.password.length < 6) {
     errors.password = "Password must be at least 6 characters.";
+  } else if (new TextEncoder().encode(values.password).length > 72) {
+    errors.password = "Password must be at most 72 UTF-8 bytes.";
   }
 
   if (mode === "signup" && !values.name?.trim()) {
@@ -48,12 +52,12 @@ export function validateWarranty(values) {
     const coverageStart = new Date(values.coverageStartDate);
     const purchase = new Date(values.purchaseDate);
 
-    if (coverageStart < purchase) {
-      errors.coverageStartDate = "Coverage start date cannot be before the purchase date.";
+    if (coverageStart < purchase || (values.expiryDate && coverageStart > new Date(values.expiryDate))) {
+      errors.coverageStartDate = "Coverage start must be between purchase and expiry dates.";
     }
   }
 
-  if (values.purchasePrice && Number(values.purchasePrice) < 0) {
+  if (values.purchasePrice && (!Number.isFinite(Number(values.purchasePrice)) || Number(values.purchasePrice) < 0)) {
     errors.purchasePrice = "Purchase price cannot be negative.";
   }
 
@@ -61,5 +65,7 @@ export function validateWarranty(values) {
     errors.currency = "Use a three-letter currency code, such as INR.";
   }
 
+  const fileError = validateInvoiceFile(values.file);
+  if (fileError) errors.file = fileError;
   return errors;
 }

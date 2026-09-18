@@ -1,4 +1,4 @@
-export function FileInput({ accept, capture, error, label, onChange }) {
+export function FileInput({ accept, capture, error, label, onChange, disabled = false }) {
   return (
     <label className="block space-y-2">
       <span className="text-sm font-medium text-slate-200">{label}</span>
@@ -7,7 +7,12 @@ export function FileInput({ accept, capture, error, label, onChange }) {
           type="file"
           accept={accept}
           capture={capture}
-          onChange={(event) => onChange(event.target.files?.[0] || null)}
+          disabled={disabled}
+          aria-invalid={Boolean(error)}
+          onChange={(event) => {
+            onChange(event.target.files?.[0] || null);
+            event.target.value = "";
+          }}
           className="block w-full text-sm text-slate-300 file:mr-4 file:rounded-full file:border-0 file:bg-brand/20 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-brand"
         />
       </div>

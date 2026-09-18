@@ -23,25 +23,25 @@ class WarrantyController {
         binder.setAllowedFields("productName", "brand", "modelNumber", "serialNumber", "category", "purchaseDate", "purchasePrice", "currency", "retailerName", "retailerOrderNumber", "warrantyProvider", "warrantyType", "policyNumber", "coverageStartDate", "expiryDate", "coverageTerms", "supportPhone", "supportEmail", "supportUrl", "notes", "version", "invoiceImage");
     }
     @GetMapping
-    List<Warranty> list(@AuthenticationPrincipal Jwt jwt) { return service.list(owner(jwt)); }
+    List<WarrantyView> list(@AuthenticationPrincipal Jwt jwt) { return service.list(owner(jwt)); }
     @GetMapping("/{id}")
-    Warranty get(@PathVariable UUID id, @AuthenticationPrincipal Jwt jwt) { return service.get(id, owner(jwt)); }
+    WarrantyView get(@PathVariable UUID id, @AuthenticationPrincipal Jwt jwt) { return service.get(id, owner(jwt)); }
 
     @PostMapping(consumes=MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
-    Warranty createForm(@Valid @ModelAttribute WarrantyRequest request, @AuthenticationPrincipal Jwt jwt) {
+    WarrantyView createForm(@Valid @ModelAttribute WarrantyRequest request, @AuthenticationPrincipal Jwt jwt) {
         return service.create(owner(jwt), request);
     }
     @PostMapping(consumes=MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
-    Warranty createJson(@Valid @RequestBody WarrantyRequest request, @AuthenticationPrincipal Jwt jwt) {
+    WarrantyView createJson(@Valid @RequestBody WarrantyRequest request, @AuthenticationPrincipal Jwt jwt) {
         return service.create(owner(jwt), request);
     }
     @PutMapping(value="/{id}", consumes=MediaType.MULTIPART_FORM_DATA_VALUE)
-    Warranty updateForm(@PathVariable UUID id, @Valid @ModelAttribute WarrantyRequest request,
+    WarrantyView updateForm(@PathVariable UUID id, @Valid @ModelAttribute WarrantyRequest request,
                         @AuthenticationPrincipal Jwt jwt) { return service.update(id, owner(jwt), request); }
     @PutMapping(value="/{id}", consumes=MediaType.APPLICATION_JSON_VALUE)
-    Warranty updateJson(@PathVariable UUID id, @Valid @RequestBody WarrantyRequest request,
+    WarrantyView updateJson(@PathVariable UUID id, @Valid @RequestBody WarrantyRequest request,
                         @AuthenticationPrincipal Jwt jwt) { return service.update(id, owner(jwt), request); }
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
@@ -54,4 +54,3 @@ class WarrantyController {
         }
     }
 }
-

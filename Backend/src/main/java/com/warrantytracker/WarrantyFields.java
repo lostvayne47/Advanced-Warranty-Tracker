@@ -22,6 +22,7 @@ public abstract class WarrantyFields {
     @DecimalMin("0.00") @Digits(integer=10, fraction=2) @Column(precision=12, scale=2)
     public BigDecimal purchasePrice;
     @Pattern(regexp="[A-Z]{3}") @Column(length=3, columnDefinition="char(3)")
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.CHAR)
     public String currency;
     @Size(max=160) @Column(length=160)
     public String retailerName;

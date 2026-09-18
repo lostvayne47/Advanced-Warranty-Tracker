@@ -2,6 +2,10 @@ import { Link } from "react-router-dom";
 import { Plus, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import { WarrantyCard } from "@/components/WarrantyCard";
+import { WarrantyActions } from "@/components/WarrantyActions";
+import { DeleteWarrantyDialog } from "@/components/DeleteWarrantyDialog";
+import { InvoiceViewer } from "@/components/InvoiceViewer";
+import { LoadError } from "@/components/ui/LoadError";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { GlassCard } from "@/components/ui/GlassCard";
@@ -12,8 +16,10 @@ import { cn } from "@/utils/cn";
 import { daysUntil, formatDate, getWarrantyStatus } from "@/utils/date";
 
 export function AllItemsPage() {
-  const { warranties, isLoading } = useWarranties();
+  const { warranties, isLoading, error, retry, removeWarranty } = useWarranties();
   const [query, setQuery] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [invoiceTarget, setInvoiceTarget] = useState(null);
 
   const filteredWarranties = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -77,6 +83,8 @@ export function AllItemsPage() {
             <WarrantySkeleton key={index} />
           ))}
         </div>
+      ) : error ? (
+        <LoadError message={error} onRetry={retry} />
       ) : warranties.length === 0 ? (
         <EmptyState />
       ) : (
@@ -124,9 +132,7 @@ export function AllItemsPage() {
                           {remainingDays < 0 ? `${Math.abs(remainingDays)} days ago` : `${remainingDays} days`}
                         </td>
                         <td className="px-6 py-5 text-right">
-                          <Link to={`/warranties/${warranty.id}/edit`} className="font-semibold text-brand hover:text-brand-light">
-                            Edit
-                          </Link>
+                          <WarrantyActions warranty={warranty} onDelete={setDeleteTarget} onViewInvoice={setInvoiceTarget} />
                         </td>
                       </tr>
                     );
@@ -139,7 +145,7 @@ export function AllItemsPage() {
           {filteredWarranties.length > 0 ? (
             <div className="grid gap-4 md:grid-cols-2 xl:hidden">
               {filteredWarranties.map((warranty) => (
-                <WarrantyCard key={warranty.id} warranty={warranty} />
+                <WarrantyCard key={warranty.id} warranty={warranty} onDelete={setDeleteTarget} onViewInvoice={setInvoiceTarget} />
               ))}
             </div>
           ) : null}
@@ -151,6 +157,8 @@ export function AllItemsPage() {
           ) : null}
         </>
       )}
+      {deleteTarget ? <DeleteWarrantyDialog warranty={deleteTarget} onClose={() => setDeleteTarget(null)} onDeleted={removeWarranty} /> : null}
+      {invoiceTarget ? <InvoiceViewer warranty={invoiceTarget} onClose={() => setInvoiceTarget(null)} /> : null}
     </div>
   );
 }

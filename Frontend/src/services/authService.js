@@ -20,7 +20,9 @@ export async function login(values) {
     return session;
   }
 
-  const { data } = await api.post("/auth/login", values);
+  const { data } = await api.post("/auth/login", values, {
+    skipSessionExpiry: true, headers: { Authorization: undefined },
+  });
   persistSession(data);
   return data;
 }
@@ -32,7 +34,9 @@ export async function signup(values) {
     return session;
   }
 
-  const { data } = await api.post("/auth/signup", values);
+  const { data } = await api.post("/auth/signup", values, {
+    skipSessionExpiry: true, headers: { Authorization: undefined },
+  });
   persistSession(data);
   return data;
 }

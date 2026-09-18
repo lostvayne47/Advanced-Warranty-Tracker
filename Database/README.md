@@ -4,10 +4,12 @@ This folder contains the Supabase PostgreSQL and Storage design for Warranty
 Tracker. The Spring Boot API owns all database and storage access; the React app
 only reads and writes through that API.
 
-Run `schema.sql` against the Supabase Postgres database, then run
-`supabase-storage.sql` in the Supabase SQL editor or apply both through
-Supabase/Flyway migrations. `supabase-storage.sql` creates the private
-`invoices` bucket and limits uploads to JPEG, PNG, or WebP up to 10 MB.
+For a new project, follow [SUPABASE_SETUP.md](SUPABASE_SETUP.md). Start Spring
+Boot with the `supabase` profile to apply versioned Flyway migrations from
+`Backend/src/main/resources/db/`. Do not also run the legacy SQL snapshots:
+`schema.sql` describes the original model and `supabase-storage.sql` the bucket.
+The migrations now also add a durable cleanup queue, one-receipt-per-warranty
+constraint, and deny browser roles direct access to application tables.
 
 ## Tables
 
@@ -19,6 +21,7 @@ Supabase/Flyway migrations. `supabase-storage.sql` creates the private
 | `warranty` | One product and its purchase, coverage, and support details. |
 | `warranty_attachment` | Metadata for receipt, warranty card, manual, or photo files. The file itself belongs in Supabase Storage, identified by `storage_key`. |
 | `warranty_reminder` | Scheduled expiry notifications. |
+| `storage_cleanup_task` | Durable upload intents and deletion retries; no client access. |
 
 `warranty.user_id` ensures every record belongs to exactly one user. The API
 must always scope warranty queries and mutations to the authenticated user.
@@ -69,7 +72,7 @@ DELETE /gmail/connections/{id}      # revokes token at Google and deletes local 
 ```
 
 For an import, retrieve only a user-selected message attachment, send that file
-to the existing invoice-extraction pipeline, and save it to the private
+to the planned invoice-extraction pipeline, and save it to the private
 Supabase bucket only after the user confirms the warranty. Do not persist full
 email bodies or continuously scan a mailbox by default. Gmail read scopes are
 restricted and may require Google OAuth verification and a security assessment
@@ -104,7 +107,7 @@ Suggested warranty endpoints: `GET /warranties`, `POST /warranties`,
 `POST /warranties/{id}/attachments`. Keep attachment files outside the database
 and store only the durable object-storage key and metadata here.
 
-## Invoice extraction flow
+## Invoice extraction flow (planned)
 
 1. The frontend sends `POST /invoice-extractions` as `multipart/form-data`
    with an `invoiceImage` image file.
@@ -125,9 +128,12 @@ authorized, time-limited `invoiceImageUrl` when a receipt image exists. The
 frontend uses that URL to show the stored invoice; it must never receive a raw
 storage key.
 
-Validate image type and size on the server, scan uploads before use, and never
-trust extracted values without the user's confirmation.
+Implemented upload validation decodes the image, checks type, size and pixel
+limits, and re-encodes its pixels before storage. It strips original metadata
+and trailing content; it does not provide malware-signature scanning.
+Never trust future extracted values without the user's confirmation.
 
-Do not accept `userId`, `createdAt`, `updatedAt`, or `version` from the client.
+Do not accept client ownership, IDs, or timestamps. Ignore client `version`
+on creation; require the current version as a precondition on updates.
 Set the user from the authenticated session, manage timestamps on the server,
 and use the returned `version` in updates to detect conflicting edits.

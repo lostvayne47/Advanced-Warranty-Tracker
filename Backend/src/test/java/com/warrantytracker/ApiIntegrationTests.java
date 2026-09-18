@@ -177,12 +177,12 @@ class ApiIntegrationTests {
         }
         assertThat(warranties.count()).isZero();
     }
-    @Test void invoiceIsExplicitlyRejectedUntilStorageExists() throws Exception {
+    @Test void corruptInvoiceIsRejectedBeforeStorageAccess() throws Exception {
         String token = token("owner@example.com");
         mvc.perform(multipart("/api/warranties").file(new MockMultipartFile("invoiceImage", "receipt.png", "image/png", new byte[]{1,2,3}))
             .header("Authorization", "Bearer " + token)
             .param("productName", "Camera").param("purchaseDate", "2026-01-01").param("expiryDate", "2027-01-01"))
-            .andExpect(status().isNotImplemented()).andExpect(jsonPath("$.message").exists());
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.message").exists());
         assertThat(warranties.count()).isZero();
     }
     @Test void corsAllowsConfiguredFrontendAndRejectsOtherOrigins() throws Exception {

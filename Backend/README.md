@@ -27,15 +27,18 @@ Use the local profile only for development.
 Set `VITE_API_URL=http://localhost:5000/api` in `Frontend/.env` and restart Vite.
 Sign out of any existing demo session before logging in to the real backend.
 Create a new account: demo accounts and browser-local warranties are not migrated.
-For this milestone, save warranties without an invoice attachment.
+Invoice storage is disabled in local-only mode. To use real private receipt
+storage, follow [Supabase setup](../Database/SUPABASE_SETUP.md).
 
 ## Configuration
 
 The default profile requires `DB_URL` (a JDBC PostgreSQL URL), `DB_USERNAME`,
 `DB_PASSWORD`, and `JWT_SECRET` (at least 32 UTF-8 bytes; use a strong random
-secret). It validates an existing database schema and never creates or updates
-production tables. The entities map to `../Database/schema.sql`; provisioning
-Supabase and running migrations are milestone 2.
+secret). Flyway applies versioned PostgreSQL migrations before Hibernate validates
+the resulting schema. Hibernate does not modify production tables. Flyway history
+lives in `warranty_migrations`; application tables live in `public`.
+The `supabase` profile uses the `SUPABASE_DB_*` variables instead and also
+applies the private bucket and browser-access restrictions.
 
 `PORT` defaults to 5000. `CORS_ORIGINS` is a comma-separated list of allowed
 frontend origins, defaulting to `http://localhost:5173`.
@@ -77,9 +80,32 @@ Errors include a `message`, and validation errors include an `errors` map.
 Typical statuses: 400 invalid input, 401 invalid/expired session, 404 missing or
 unowned warranty, 409 duplicate account or conflicting edit.
 
-Invoice uploads currently return 501 without creating/updating a warranty.
-Supabase attachment storage, OCR, Google/Gmail OAuth, and reminder delivery
-remain on the root TODO list.
+Create/update accept an optional `invoiceImage` file. With Supabase configured,
+the backend validates and sanitizes the image, uploads to the private `invoices`
+bucket, and records its metadata. JPEG, PNG, and still WebP images up to 10 MB
+and 20 megapixels are supported; sanitized WebP images are stored as PNG.
+The stored bytes must also remain within 10 MB. Original client paths are
+removed from filenames; originals, EXIF metadata and trailing content are not retained.
+This is image validation/sanitization, not a malware-signature scanning service.
+
+GET list/detail responses include `fileName` and `invoiceImageUrl` (a five-minute
+signed URL) for receipts. Refresh the warranty data to obtain a new URL after
+expiry. Mutation responses include `fileName`; fetch the warranty to obtain
+its download URL. Storage keys and service credentials are never response fields.
+A save without a new file preserves its receipt; a save with a new file replaces it.
+An explicitly empty/corrupt file returns 400, oversized files return 413, and
+unavailable/unconfigured storage returns 503 without committing the save.
+
+Deleted/replaced files are queued in the same transaction as their metadata
+change and removed asynchronously. Upload intents are recorded in an independent
+transaction before network access; abandoned uploads are eligible for cleanup
+after an hour. A row lock prevents cleanup while a save is in progress. The worker
+runs each minute, keeps referenced files, and retries failed deletion with backoff
+up to one hour. Tasks survive application restarts; monitor
+`public.storage_cleanup_task` for growing queues. Avoid deleting attachment rows
+manually: use the API so storage cleanup is queued.
+
+OCR, Google/Gmail OAuth, and reminder delivery remain on the root TODO list.
 
 ## Verification
 
@@ -87,11 +113,16 @@ remain on the root TODO list.
 .\mvnw.cmd verify
 ```
 
-Integration tests use an isolated in-memory H2 database and actual signed JWTs.
+Authentication/CRUD integration tests use in-memory H2 and actual signed JWTs.
 They cover password hashing/login, invalid and expired tokens, owner CRUD,
 cross-user isolation, frontend multipart create/update, protected fields,
-validation, stale versions, CORS, and explicit rejection of unsupported uploads.
-These tests do not verify a deployed PostgreSQL/Supabase instance.
+validation, stale versions, CORS, and rejection of corrupt uploads.
+Storage integration tests start an isolated PostgreSQL 17 instance using native
+test binaries (no Docker required). They apply all three migrations and exercise
+the real HTTP storage client against a local Supabase API test double, including
+ownership, replacement, rollback, cleanup retries, and signing failures.
+Image tests cover JPEG/PNG/WebP decoding and sanitization. These do not verify
+a hosted Supabase project. On Linux, run PostgreSQL tests as a non-root user.
 
 The runnable artifact is `target/backend-0.0.1-SNAPSHOT.jar`.
 Run it with the same environment settings:

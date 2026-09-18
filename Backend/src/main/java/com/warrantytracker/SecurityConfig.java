@@ -48,6 +48,9 @@ class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
+                .requestMatchers(HttpMethod.GET, "/actuator/health/readiness", "/actuator/health/liveness").permitAll()
+                .requestMatchers(HttpMethod.GET, "/", "/index.html", "/assets/**", "/favicon.ico",
+                    "/login", "/signup", "/dashboard", "/items", "/connections", "/add-warranty", "/warranties/*/edit").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/auth/signup", "/api/auth/login").permitAll()
                 .anyRequest().authenticated())
             .oauth2ResourceServer(oauth -> oauth.jwt(Customizer.withDefaults())
@@ -71,4 +74,3 @@ class SecurityConfig {
             .build();
     }
 }
-

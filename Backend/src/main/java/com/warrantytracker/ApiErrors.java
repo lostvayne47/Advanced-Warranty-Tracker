@@ -12,6 +12,10 @@ import org.springframework.web.server.ResponseStatusException;
 
 @RestControllerAdvice
 class ApiErrors {
+    @ExceptionHandler(StorageUnavailableException.class)
+    ResponseEntity<ErrorBody> storage(StorageUnavailableException ex) {
+        return ResponseEntity.status(503).body(new ErrorBody(ex.getMessage(), Map.of()));
+    }
     record ErrorBody(String message, Map<String, String> errors) {}
     @ExceptionHandler(ResponseStatusException.class)
     ResponseEntity<ErrorBody> status(ResponseStatusException ex) {

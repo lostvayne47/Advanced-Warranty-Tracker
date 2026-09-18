@@ -129,3 +129,12 @@ export async function updateWarranty(id, values) {
   });
   return data;
 }
+
+export async function deleteWarranty(id) {
+  if (!appConfig.apiBaseUrl) {
+    setStorageItem(appConfig.storageKeys.warranties,
+      getStoredWarranties().filter((warranty) => warranty.id !== id));
+    return;
+  }
+  await api.delete(`/warranties/${id}`);
+}

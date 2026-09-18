@@ -8,10 +8,11 @@ import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { useWarranties } from "@/hooks/useWarranties";
+import { LoadError } from "@/components/ui/LoadError";
 import { getWarrantyAnalytics } from "@/utils/warrantyAnalytics";
 
 export function DashboardPage() {
-  const { warranties, isLoading } = useWarranties();
+  const { warranties, isLoading, error, retry } = useWarranties();
   const analytics = getWarrantyAnalytics(warranties);
 
   return (
@@ -51,6 +52,8 @@ export function DashboardPage() {
 
       {isLoading ? (
         <AnalyticsSkeleton />
+      ) : error ? (
+        <LoadError message={error} onRetry={retry} />
       ) : warranties.length === 0 ? (
         <EmptyState />
       ) : (

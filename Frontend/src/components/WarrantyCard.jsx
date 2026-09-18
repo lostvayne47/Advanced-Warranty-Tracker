@@ -1,10 +1,10 @@
 import { FileText } from "lucide-react";
-import { Link } from "react-router-dom";
+import { WarrantyActions } from "@/components/WarrantyActions";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { formatDate, getWarrantyStatus, daysUntil } from "@/utils/date";
 
-export function WarrantyCard({ warranty }) {
+export function WarrantyCard({ warranty, onDelete, onViewInvoice }) {
   const status = getWarrantyStatus(warranty.expiryDate);
 
   return (
@@ -31,23 +31,8 @@ export function WarrantyCard({ warranty }) {
         </div>
       </div>
 
-      {warranty.invoiceImageUrl ? (
-        <a
-          href={warranty.invoiceImageUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="mt-5 block overflow-hidden rounded-xl border border-white/10 bg-slate-950/30"
-        >
-          <img
-            src={warranty.invoiceImageUrl}
-            alt={`Invoice for ${warranty.productName}`}
-            className="h-40 w-full object-cover transition hover:scale-[1.02]"
-          />
-        </a>
-      ) : null}
-
       <div className="mt-6 flex items-center justify-between gap-3">
-        <p className="text-sm text-slate-300">{daysUntil(warranty.expiryDate)} days remaining</p>
+        <p className="text-sm text-slate-300">{daysUntil(warranty.expiryDate) < 0 ? "Expired" : `${daysUntil(warranty.expiryDate)} days remaining`}</p>
         {warranty.fileName ? (
           <span className="inline-flex items-center gap-2 text-sm text-brand">
             <FileText className="h-4 w-4" />
@@ -55,9 +40,9 @@ export function WarrantyCard({ warranty }) {
           </span>
         ) : null}
       </div>
-      <Link to={`/warranties/${warranty.id}/edit`} className="mt-5 inline-block text-sm font-semibold text-brand">
-        Edit warranty
-      </Link>
+      <div className="mt-5">
+        <WarrantyActions warranty={warranty} onDelete={onDelete} onViewInvoice={onViewInvoice} />
+      </div>
     </GlassCard>
   );
 }

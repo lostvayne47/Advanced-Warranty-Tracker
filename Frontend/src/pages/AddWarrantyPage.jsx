@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
@@ -6,6 +6,10 @@ import { FileInput } from "@/components/ui/FileInput";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
+import { LoadError } from "@/components/ui/LoadError";
+import { LoadingScreen } from "@/components/ui/LoadingScreen";
+import { InvoiceViewer } from "@/components/InvoiceViewer";
+import { appConfig } from "@/config/appConfig";
 import {
   createWarranty,
   extractInvoiceData,
@@ -13,6 +17,8 @@ import {
   updateWarranty,
 } from "@/services/warrantyService";
 import { validateWarranty } from "@/utils/validation";
+import { getApiError, getFieldErrors } from "@/utils/apiErrors";
+import { INVOICE_ACCEPT, inspectInvoiceImage } from "@/utils/invoiceValidation";
 
 const initialValues = {
   productName: "",
@@ -48,51 +54,83 @@ export function AddWarrantyPage() {
   const [isLoading, setIsLoading] = useState(isEditing);
   const [isExtracting, setIsExtracting] = useState(false);
   const [invoicePreview, setInvoicePreview] = useState("");
+  const [loadError, setLoadError] = useState("");
+  const [submitError, setSubmitError] = useState("");
+  const [conflict, setConflict] = useState(false);
+  const [reloadRevision, setReloadRevision] = useState(0);
+  const [showInvoice, setShowInvoice] = useState(false);
+  const [checkingInvoice, setCheckingInvoice] = useState(false);
+  const fileSequence = useRef(0);
+  const saving = useRef(false);
+  const extracting = useRef(false);
 
   useEffect(() => () => {
     if (invoicePreview) URL.revokeObjectURL(invoicePreview);
   }, [invoicePreview]);
 
   useEffect(() => {
-    if (!isEditing) return;
+    let ignore = false;
+    fileSequence.current++;
+    setCheckingInvoice(false);
+    setValues(initialValues);
+    setInvoicePreview("");
+    setErrors({});
+    setLoadError("");
+    setSubmitError("");
+    setConflict(false);
+    if (!isEditing) {
+      setIsLoading(false);
+      return () => { fileSequence.current++; };
+    }
+    setIsLoading(true);
 
     async function loadWarranty() {
       try {
         const warranty = await fetchWarranty(id);
+        if (ignore) return;
         if (!warranty) {
-          toast.error("Warranty not found.");
-          navigate("/items", { replace: true });
+          setLoadError("Warranty not found. Return to All items to choose another warranty.");
           return;
         }
-        setValues({ ...initialValues, ...warranty, file: null });
+        const normalized = Object.fromEntries(Object.entries(initialValues)
+          .map(([field, fallback]) => [field, warranty[field] ?? fallback]));
+        setValues({ ...normalized, id: warranty.id, version: warranty.version,
+          fileName: warranty.fileName, invoiceImageUrl: warranty.invoiceImageUrl, file: null });
       } catch (error) {
-        toast.error(error.response?.data?.message || "Unable to load this warranty.");
+        if (!ignore) setLoadError(getApiError(error, "Unable to load this warranty."));
       } finally {
-        setIsLoading(false);
+        if (!ignore) setIsLoading(false);
       }
     }
 
     loadWarranty();
-  }, [id, isEditing, navigate]);
+    return () => { ignore = true; fileSequence.current++; };
+  }, [id, isEditing, reloadRevision]);
 
-  function handleInvoiceChange(file) {
-    if (file && !file.type.startsWith("image/")) {
-      setErrors((current) => ({ ...current, file: "Please choose an invoice image." }));
-      return;
-    }
-
+  async function handleInvoiceChange(file) {
+    const sequence = ++fileSequence.current;
+    setValues((current) => ({ ...current, file: null }));
+    setInvoicePreview("");
+    setCheckingInvoice(Boolean(file));
     setErrors((current) => ({ ...current, file: undefined }));
+    if (!file) return;
+    const error = await inspectInvoiceImage(file);
+    if (sequence !== fileSequence.current) return;
+    setCheckingInvoice(false);
+    if (error) { setErrors((current) => ({ ...current, file: error })); return; }
     setValues((current) => ({ ...current, file }));
-    setInvoicePreview(file ? URL.createObjectURL(file) : "");
+    setInvoicePreview(URL.createObjectURL(file));
   }
 
   async function handleExtractInvoice() {
+    if (extracting.current || checkingInvoice || saving.current) return;
     if (!values.file) {
       setErrors((current) => ({ ...current, file: "Capture or choose an invoice image first." }));
       return;
     }
 
     try {
+      extracting.current = true;
       setIsExtracting(true);
       const extractedData = await extractInvoiceData(values.file);
       const allowedFields = Object.keys(initialValues).filter((field) => field !== "file");
@@ -102,15 +140,20 @@ export function AddWarrantyPage() {
       setValues((current) => ({ ...current, ...safeData }));
       toast.success("Invoice details extracted. Review and confirm the information below.");
     } catch (error) {
-      toast.error(error.response?.data?.message || error.message || "Unable to extract invoice details.");
+      toast.error(error.response?.status === 404
+        ? "Invoice extraction is not available yet. Enter the details manually."
+        : getApiError(error, error.message || "Unable to extract invoice details."));
     } finally {
+      extracting.current = false;
       setIsExtracting(false);
     }
   }
 
   async function handleSubmit(event) {
     event.preventDefault();
-    const validationErrors = validateWarranty(values);
+    if (saving.current || checkingInvoice || isExtracting || isLoading || loadError || conflict) return;
+    setSubmitError("");
+    const validationErrors = { ...validateWarranty(values), ...(errors.file ? { file: errors.file } : {}) };
     setErrors(validationErrors);
 
     if (Object.keys(validationErrors).length > 0) {
@@ -118,6 +161,7 @@ export function AddWarrantyPage() {
     }
 
     try {
+      saving.current = true;
       setIsSubmitting(true);
       if (isEditing) {
         await updateWarranty(id, values);
@@ -128,11 +172,17 @@ export function AddWarrantyPage() {
       }
       navigate("/dashboard");
     } catch (error) {
-      toast.error(error.response?.data?.message || "Unable to save this warranty.");
+      setErrors(getFieldErrors(error));
+      setSubmitError(getApiError(error, "Unable to save this warranty. Your changes are still in the form."));
+      setConflict(error.response?.status === 409);
     } finally {
+      saving.current = false;
       setIsSubmitting(false);
     }
   }
+
+  if (isLoading) return <LoadingScreen />;
+  if (loadError) return <LoadError message={loadError} onRetry={() => setReloadRevision((value) => value + 1)} />;
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -145,25 +195,64 @@ export function AddWarrantyPage() {
             {isEditing ? "Edit warranty" : "Add a warranty"}
           </h2>
           <p className="mt-3 max-w-2xl text-sm text-slate-300">
-            Capture an invoice to extract details, then review and confirm every field before saving.
+            Add your product and coverage details, and attach an invoice if you have one.
           </p>
         </div>
 
         <form className="grid gap-5 md:grid-cols-2" onSubmit={handleSubmit}>
+          {submitError ? (
+            <div className="md:col-span-2 rounded-xl bg-rose-400/10 p-4">
+              <p role="alert" className="text-sm text-rose-200">{submitError}</p>
+              {conflict ? (
+                <div className="mt-3 space-y-3">
+                  <p className="text-sm text-slate-300">Copy any changes you want to keep before reloading. Reloading replaces this form with the latest saved version.</p>
+                  <Button type="button" variant="secondary" onClick={() => {
+                    if (window.confirm("Reload the latest warranty? Your unsaved changes will be discarded.")) setReloadRevision((value) => value + 1);
+                  }}>Reload latest warranty</Button>
+                </div>
+              ) : null}
+              {Object.keys(errors).length ? (
+                <ul className="mt-2 list-inside list-disc text-sm text-rose-200">
+                  {Object.entries(errors).map(([field, message]) => (
+                    <li key={field}>{field.replace(/([A-Z])/g, " $1").replace(/^./, (letter) => letter.toUpperCase())}: {message}</li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          ) : null}
+          <fieldset disabled={isSubmitting || isExtracting} className="contents">
           <div className="md:col-span-2 rounded-2xl border border-brand/20 bg-brand/5 p-5">
-            <p className="text-sm font-semibold text-white">1. Capture your invoice</p>
+            <p className="text-sm font-semibold text-white">Invoice (optional)</p>
             <p className="mt-1 text-sm text-slate-300">
-              Take a photo or choose an image. We will send it to the backend for extraction; you remain in control of the final details.
+              JPEG, PNG, or still WebP, up to 10 MB and 20 megapixels.
+              {isEditing ? " Choose a new image only if you want to replace the saved invoice." : ""}
             </p>
+            {isEditing && values.fileName ? (
+              <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
+                <span className="break-all text-slate-300">Saved invoice: {values.fileName}</span>
+                <Button type="button" variant="secondary" onClick={() => setShowInvoice(true)}>View saved invoice</Button>
+              </div>
+            ) : null}
+            {!appConfig.apiBaseUrl ? <p className="mt-2 text-sm text-amber-100">Demo mode saves invoice filenames only, not image files.</p> : null}
             <div className="mt-4">
               <FileInput
                 label="Invoice image"
-                accept="image/*"
+                accept={INVOICE_ACCEPT}
                 capture="environment"
                 error={errors.file}
                 onChange={handleInvoiceChange}
               />
             </div>
+            {checkingInvoice ? <p role="status" className="mt-3 text-sm text-slate-300">Checking image…</p> : null}
+            {errors.file && !values.file ? (
+              <Button type="button" variant="ghost" className="mt-2" onClick={() => handleInvoiceChange(null)}>Continue without a new invoice</Button>
+            ) : null}
+            {values.file ? (
+              <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-slate-300">
+                <span className="break-all">{values.file.name}</span>
+                <Button type="button" variant="ghost" onClick={() => handleInvoiceChange(null)}>Remove selected image</Button>
+              </div>
+            ) : null}
             {invoicePreview ? (
               <img
                 src={invoicePreview}
@@ -176,6 +265,7 @@ export function AddWarrantyPage() {
               variant="secondary"
               className="mt-4"
               isLoading={isExtracting}
+              disabled={checkingInvoice || !values.file || isSubmitting}
               onClick={handleExtractInvoice}
             >
               Extract invoice details
@@ -183,7 +273,7 @@ export function AddWarrantyPage() {
           </div>
 
           <div className="md:col-span-2 mt-2 border-t border-white/10 pt-5">
-            <p className="text-sm font-semibold text-white">2. Review and confirm</p>
+            <p className="text-sm font-semibold text-white">Product details</p>
           </div>
           <div className="md:col-span-2">
             <Input
@@ -363,12 +453,14 @@ export function AddWarrantyPage() {
           </div>
 
           <div className="md:col-span-2 flex justify-end">
-            <Button type="submit" isLoading={isSubmitting || isLoading}>
+            <Button type="submit" isLoading={isSubmitting} disabled={checkingInvoice || isExtracting || conflict}>
               {isEditing ? "Save changes" : "Save warranty"}
             </Button>
           </div>
+          </fieldset>
         </form>
       </GlassCard>
+      {showInvoice ? <InvoiceViewer warranty={{ id, productName: values.productName }} onClose={() => setShowInvoice(false)} /> : null}
     </div>
   );
 }

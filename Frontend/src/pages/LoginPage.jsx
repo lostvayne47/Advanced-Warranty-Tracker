@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/Input";
 import { useAuth } from "@/hooks/useAuth";
 import { beginGoogleSignIn } from "@/services/authService";
 import { validateAuth } from "@/utils/validation";
+import { getApiError, getFieldErrors } from "@/utils/apiErrors";
 
 const initialValues = {
   email: "",
@@ -16,7 +17,7 @@ const initialValues = {
 export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login } = useAuth();
+  const { login, sessionExpired } = useAuth();
   const [values, setValues] = useState(initialValues);
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -40,11 +41,12 @@ export function LoginPage() {
 
     try {
       setIsSubmitting(true);
-      await login(values);
+      await login({ ...values, email: values.email.trim() });
       toast.success("Welcome back.");
       navigate(location.state?.from?.pathname || "/dashboard", { replace: true });
     } catch (error) {
-      toast.error(error.response?.data?.message || "Unable to login right now.");
+      setErrors(getFieldErrors(error));
+      toast.error(getApiError(error, "Unable to sign in right now."));
     } finally {
       setIsSubmitting(false);
     }
@@ -56,6 +58,11 @@ export function LoginPage() {
       subtitle="Use your email and password to access your warranty dashboard."
     >
       <form className="space-y-5" onSubmit={handleSubmit}>
+        {sessionExpired ? (
+          <p role="status" className="rounded-xl bg-amber-300/10 p-3 text-sm text-amber-100">
+            Your session expired. Sign in again to continue.
+          </p>
+        ) : null}
         <Input
           label="Email"
           type="email"
