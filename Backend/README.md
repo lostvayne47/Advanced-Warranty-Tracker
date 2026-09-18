@@ -105,7 +105,8 @@ up to one hour. Tasks survive application restarts; monitor
 `public.storage_cleanup_task` for growing queues. Avoid deleting attachment rows
 manually: use the API so storage cleanup is queued.
 
-OCR, Google/Gmail OAuth, and reminder delivery remain on the root TODO list.
+OCR is implemented in the browser; no extraction API endpoint is required.
+Google/Gmail OAuth and reminder delivery remain on the root TODO list.
 
 ## Verification
 

@@ -66,7 +66,7 @@ show credential errors separately.
 
 Demo mode keeps warranty data in browser storage and supports deletion, but
 stores only invoice filenames, not image contents. It does not provide real
-account isolation or authentication. OCR, Google/Gmail integration and scheduled
+account isolation or authentication. Google/Gmail integration and scheduled
 notifications remain later milestones.
 
 ## Verification
@@ -88,3 +88,16 @@ Real frontend-to-backend and hosted storage verification is milestone 4.
 
 Project progress and resumption notes are kept in [TODO.md](../TODO.md) and
 [HANDOFF.md](../HANDOFF.md).
+## Invoice OCR
+
+The add/edit form supports English OCR using [Tesseract.js](https://github.com/naptha/tesseract.js).
+Recognition runs on the device; the image is uploaded only when the warranty is
+saved. `npm run dev` and `npm run build` prepare locally served OCR assets from
+locked npm dependencies. No OCR API key or CDN request is required.
+
+Choose an image, extract details, review recognized text, and select suggestions
+to apply. Applying suggestions does not save the warranty. Unselected existing
+entries are preserved. Ambiguous dates/prices, unlabelled products, and coverage
+expiry must be entered manually. Clear English printed invoices work best;
+PDF and handwriting support are not included. OCR can be canceled and has a
+90-second timeout. The generated OCR assets increase deployment size.

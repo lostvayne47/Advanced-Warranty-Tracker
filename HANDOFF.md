@@ -1,10 +1,28 @@
 # Project handoff
 
 ## Current task
-Milestone 4 is in progress: real frontend/backend release tests, dependency
-readiness, deployment configuration, and live smoke testing when hosting is
-available. Preserve incremental changes and update this note after each part.
+Milestone 5 has started with OCR. Milestone 4 remains pending hosted setup and
+Docker verification. Preserve incremental changes and update this note after each part.
 Milestones 1-3 are implemented; do not rebuild them.
+
+## Task 5 increments
+1. OCR implemented: Tesseract.js runs English image recognition in browser;
+   predev/prebuild copies locked npm worker/core/language assets to the app's
+   public/assets/ocr directory (generated, ignored). No external OCR service or
+   nonexistent invoice-extractions API is used. Existing /assets/** permits
+   loading these assets in the bundled backend deployment.
+2. Review dialog requires explicit field selection before applying suggestions;
+   never auto-saves. Raw text remains available for manual entry. Parser uses
+   labelled fields, ISO dates, and explicit currency/decimal totals; ambiguous
+   fields and coverage expiry remain manual. Cancellation, timeout, route/file
+   changes discard stale results. Manual input remains available on failure.
+3. Verified: production build, six unit tests, 22 browser tests including real
+   OCR on desktop/mobile, and two additional cancellation tests all passed.
+   npm install audit reported zero vulnerabilities. Task 5 OCR is complete;
+   next task 5 increment is Google sign-in. No backend changes in this increment.
+4. Next milestones: Google sign-in, optional Gmail import/disconnect, scheduled
+   reminders. These are not implemented. Hosted Google integration will need
+   OAuth project credentials and approved redirect URLs; no credentials exist.
 
 ## Task 4 increments
 1. Complete: npm audit fix applied compatible updates;

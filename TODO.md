@@ -51,8 +51,13 @@ Local verification passed: 22 backend tests and 4 release browser tests, plus
 remain pending under task 2. Follow [DEPLOYMENT.md](DEPLOYMENT.md) for setup,
 deployment, smoke checks, and rollback. Docker and CI have not yet been executed.
 
-## 5. Subsequent milestones
-- [ ] Implement OCR extraction with user review before saving.
+## 5. Subsequent milestones - in progress
+- [x] Implement English image OCR extraction with explicit user review before saving.
 - [ ] Complete Google sign-in.
 - [ ] Complete optional Gmail connection, invoice selection/import, and disconnect.
 - [ ] Implement scheduled expiry reminders and notification delivery.
+
+OCR verification: production build, 6 unit tests, 22 desktop/mobile browser
+tests (including real OCR), and 2 additional cancellation tests passed. OCR
+runs locally with app-served assets. Ambiguous fields and warranty expiry remain
+manual; no warranty is saved until the user submits the form. Next: Google sign-in.

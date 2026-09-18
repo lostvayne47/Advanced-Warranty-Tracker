@@ -2,9 +2,53 @@ import { test, expect } from "@playwright/test";
 
 const API = "http://127.0.0.1:5001";
 const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64");
+
+test('real OCR requires review and leaves existing entries unchanged until applied', async ({ page }) => {
+  test.setTimeout(120000);
+  const state = await setup(page);
+  await page.goto('/add-warranty');
+  await page.getByLabel('Product name', { exact: true }).fill('My entry');
+  const data = await page.evaluate(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1100; canvas.height = 500;
+    const context = canvas.getContext('2d');
+    context.fillStyle = 'white'; context.fillRect(0, 0, 1100, 500);
+    context.fillStyle = 'black'; context.font = '36px Arial';
+    ['INVOICE', 'Product: Camera', 'Invoice date: 2026-01-20', 'Total: INR 1200.00'].forEach((line, i) => context.fillText(line, 50, 80 + i * 80));
+    return canvas.toDataURL('image/png').split(',')[1];
+  });
+  await page.locator('input[type=file]').setInputFiles({ name: 'ocr.png', mimeType: 'image/png', buffer: Buffer.from(data, 'base64') });
+  await page.getByRole('button', { name: 'Extract invoice details' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Review extracted invoice' });
+  await expect(dialog).toBeVisible({ timeout: 90000 });
+  await expect(page.getByLabel('Product name', { exact: true })).toHaveValue('My entry');
+  await expect(dialog.getByRole('button', { name: 'Apply selected details' })).toBeDisabled();
+  await dialog.getByRole('checkbox', { name: /product name: Camera/i }).check();
+  await dialog.getByRole('button', { name: 'Apply selected details' }).click();
+  await expect(page.getByLabel('Product name', { exact: true })).toHaveValue('Camera');
+  await expect(page.getByLabel('Purchase date', { exact: true })).toHaveValue('');
+  expect(state.writes).toEqual([]);
+});
 function jwt(seconds = 3600) {
   return `header.${Buffer.from(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + seconds })).toString("base64url")}.signature`;
 }
+
+test('OCR cancellation restores the form without saving or replacing entries', async ({ page }) => {
+  const state = await setup(page);
+  await page.route('**/assets/ocr/worker.min.js', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    await route.continue().catch(() => {});
+  });
+  await page.goto('/add-warranty');
+  await page.getByLabel('Product name', { exact: true }).fill('Keep this');
+  await page.locator('input[type=file]').setInputFiles({ name: 'blank.png', mimeType: 'image/png', buffer: png });
+  await page.getByRole('button', { name: 'Extract invoice details' }).click();
+  await page.getByRole('button', { name: 'Cancel extraction' }).click();
+  await expect(page.getByRole('button', { name: 'Save warranty', exact: true })).toBeEnabled();
+  await expect(page.getByLabel('Product name', { exact: true })).toHaveValue('Keep this');
+  await expect(page.getByRole('dialog')).not.toBeVisible();
+  expect(state.writes).toEqual([]);
+});
 async function setup(page, options = {}) {
   const state = {
     token: jwt(), deletes: 0, reads: 0, writes: [], failDelete: false,

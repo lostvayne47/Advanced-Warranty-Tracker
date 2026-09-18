@@ -59,19 +59,6 @@ export async function fetchWarranty(id) {
   return data;
 }
 
-export async function extractInvoiceData(file) {
-  if (!appConfig.apiBaseUrl) {
-    throw new Error("Connect the backend to extract invoice details.");
-  }
-
-  const formData = new FormData();
-  formData.append("invoiceImage", file);
-  const { data } = await api.post("/invoice-extractions", formData, {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
-
-  return data.extractedData || data.data || data;
-}
 
 export async function createWarranty(values) {
   if (!appConfig.apiBaseUrl) {

@@ -9,10 +9,11 @@ import { Textarea } from "@/components/ui/Textarea";
 import { LoadError } from "@/components/ui/LoadError";
 import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { InvoiceViewer } from "@/components/InvoiceViewer";
+import { InvoiceExtractionReview } from "@/components/InvoiceExtractionReview";
+import { extractInvoiceData } from "@/services/invoiceOcr";
 import { appConfig } from "@/config/appConfig";
 import {
   createWarranty,
-  extractInvoiceData,
   fetchWarranty,
   updateWarranty,
 } from "@/services/warrantyService";
@@ -63,6 +64,10 @@ export function AddWarrantyPage() {
   const fileSequence = useRef(0);
   const saving = useRef(false);
   const extracting = useRef(false);
+  const extractionController = useRef(null);
+  const [extraction, setExtraction] = useState(null);
+  const [extractionProgress, setExtractionProgress] = useState("");
+  useEffect(() => () => extractionController.current?.abort(), []);
 
   useEffect(() => () => {
     if (invoicePreview) URL.revokeObjectURL(invoicePreview);
@@ -71,6 +76,8 @@ export function AddWarrantyPage() {
   useEffect(() => {
     let ignore = false;
     fileSequence.current++;
+    extractionController.current?.abort();
+    setExtraction(null);
     setCheckingInvoice(false);
     setValues(initialValues);
     setInvoicePreview("");
@@ -108,6 +115,8 @@ export function AddWarrantyPage() {
   }, [id, isEditing, reloadRevision]);
 
   async function handleInvoiceChange(file) {
+    extractionController.current?.abort();
+    setExtraction(null);
     const sequence = ++fileSequence.current;
     setValues((current) => ({ ...current, file: null }));
     setInvoicePreview("");
@@ -129,20 +138,17 @@ export function AddWarrantyPage() {
       return;
     }
 
+    const sequence = fileSequence.current;
+    const controller = new AbortController();
+    extractionController.current = controller;
     try {
       extracting.current = true;
       setIsExtracting(true);
-      const extractedData = await extractInvoiceData(values.file);
-      const allowedFields = Object.keys(initialValues).filter((field) => field !== "file");
-      const safeData = Object.fromEntries(
-        Object.entries(extractedData).filter(([field, value]) => allowedFields.includes(field) && value != null),
-      );
-      setValues((current) => ({ ...current, ...safeData }));
-      toast.success("Invoice details extracted. Review and confirm the information below.");
+      setExtractionProgress("Preparing OCR…");
+      const result = await extractInvoiceData(values.file, { signal: controller.signal, onProgress: setExtractionProgress });
+      if (sequence === fileSequence.current && !controller.signal.aborted) setExtraction(result);
     } catch (error) {
-      toast.error(error.response?.status === 404
-        ? "Invoice extraction is not available yet. Enter the details manually."
-        : getApiError(error, error.message || "Unable to extract invoice details."));
+      if (!controller.signal.aborted && sequence === fileSequence.current) toast.error(error.message || "Unable to extract invoice details. Enter them manually.");
     } finally {
       extracting.current = false;
       setIsExtracting(false);
@@ -220,6 +226,10 @@ export function AddWarrantyPage() {
               ) : null}
             </div>
           ) : null}
+          {isExtracting ? <div className="md:col-span-2">
+            <p role="status" className="text-sm text-slate-300">{extractionProgress}</p>
+            <Button type="button" variant="secondary" onClick={() => extractionController.current?.abort()}>Cancel extraction</Button>
+          </div> : null}
           <fieldset disabled={isSubmitting || isExtracting} className="contents">
           <div className="md:col-span-2 rounded-2xl border border-brand/20 bg-brand/5 p-5">
             <p className="text-sm font-semibold text-white">Invoice (optional)</p>
@@ -227,6 +237,7 @@ export function AddWarrantyPage() {
               JPEG, PNG, or still WebP, up to 10 MB and 20 megapixels.
               {isEditing ? " Choose a new image only if you want to replace the saved invoice." : ""}
             </p>
+            <p className="mt-2 text-sm text-slate-300">English OCR runs on your device. Review suggestions before applying them. The invoice is uploaded only when you save.</p>
             {isEditing && values.fileName ? (
               <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
                 <span className="break-all text-slate-300">Saved invoice: {values.fileName}</span>
@@ -461,6 +472,12 @@ export function AddWarrantyPage() {
         </form>
       </GlassCard>
       {showInvoice ? <InvoiceViewer warranty={{ id, productName: values.productName }} onClose={() => setShowInvoice(false)} /> : null}
+      {extraction ? <InvoiceExtractionReview result={extraction} onClose={() => setExtraction(null)} onApply={(fields) => {
+        setValues((current) => ({ ...current, ...fields }));
+        setErrors((current) => Object.fromEntries(Object.entries(current).filter(([field]) => !(field in fields))));
+        setExtraction(null);
+        toast.success("Selected details applied. Review the form before saving.");
+      }} /> : null}
     </div>
   );
 }
