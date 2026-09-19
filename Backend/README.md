@@ -5,15 +5,27 @@ and Spring Data JPA. No global Maven installation is needed.
 
 ## Run locally (PowerShell)
 
-From the repository root:
+One-time setup: copy `Backend/.env.example` to `Backend/.env` and fill in your
+keys. The file is ignored by Git. Generate `JWT_SECRET` once (at least 32 random
+bytes) and keep it in this file so sessions survive restarts. For example, from
+`Backend/`, this generates a secret and writes it without printing it:
 
 ```powershell
-cd Backend
+if (Test-Path .env) { throw 'Backend/.env already exists; edit it instead.' }
+Copy-Item .env.example .env -ErrorAction Stop
 $jwtBytes = New-Object byte[] 48
 $jwtRng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
 $jwtRng.GetBytes($jwtBytes)
 $jwtRng.Dispose()
-$env:JWT_SECRET = [Convert]::ToBase64String($jwtBytes)
+$settings = [IO.File]::ReadAllText((Join-Path (Get-Location) '.env'))
+$settings = $settings.Replace('JWT_SECRET=', 'JWT_SECRET=' + [Convert]::ToBase64String($jwtBytes))
+[IO.File]::WriteAllText((Join-Path (Get-Location) '.env'), $settings)
+```
+
+Run from the repository root:
+
+```powershell
+cd Backend
 .\mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=local"
 ```
 
@@ -42,9 +54,15 @@ applies the private bucket and browser-access restrictions.
 
 `PORT` defaults to 5000. `CORS_ORIGINS` is a comma-separated list of allowed
 frontend origins, defaulting to `http://localhost:5173`.
-`.env.example` is a reference, not an automatically loaded configuration file.
-Set variables in your shell or deployment environment. No secrets belong in Vite
-except its public API URL. Use HTTPS for deployment.
+`Backend/.env` is automatically loaded when starting from `Backend/` or the
+repository root. All existing settings (Gemini, JWT, database, Supabase, port,
+and CORS) can go there. Use unquoted `KEY=value` lines and standalone `#` comments;
+this uses Spring's properties-file import syntax, not shell `export` syntax.
+Restart after changes. Environment variables and command-line settings can
+still override file values in deployment. A missing `.env` is allowed.
+The working directory's `.env` is loaded first; `Backend/.env`, when present,
+takes precedence over it. `.env.example` remains a blank tracked template.
+No secret keys belong in Vite; only its public API URL. Use HTTPS for deployment.
 
 ## API
 
@@ -107,7 +125,7 @@ manually: use the API so storage cleanup is queued.
 
 ## Gemini invoice parsing
 
-Set `GEMINI_API_KEY` in the backend process environment and restart the API.
+Set `GEMINI_API_KEY=your-key` in `Backend/.env` and restart the API.
 `GEMINI_MODEL` defaults to `gemini-3.8-flash` and can be changed to a Gemini
 model supporting image input and structured output. Get a key from
 [Google AI Studio](https://aistudio.google.com/apikey). Never put it in a

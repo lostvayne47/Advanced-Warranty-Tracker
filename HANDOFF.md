@@ -2,6 +2,13 @@
 
 ## Current task
 
+Local configuration now loads automatically from Backend/.env (launch from
+Backend/ or repository root) using Spring config import. An ignored local file
+was created with a persistent random JWT secret and blank provider keys. Use
+unquoted KEY=value lines; restart after edits. Environment variables can still
+override file values. Verified startup without shell-provided JWT_SECRET and
+readiness health. Keep real keys out of tracked .env.example files.
+
 Latest change: replaced the add/edit form's local OCR flow with authenticated
 Gemini image parsing through `POST /api/invoice-extractions`. Server configuration:
 `GEMINI_API_KEY`, optional `GEMINI_MODEL` (default `gemini-3.8-flash`). No key was

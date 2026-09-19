@@ -50,7 +50,7 @@ class GeminiInvoiceExtractor {
 
     void checkConfigured() {
         if (key.isBlank()) throw error(HttpStatus.SERVICE_UNAVAILABLE,
-            "Gemini invoice parsing is not configured. Set GEMINI_API_KEY on the backend and restart it.");
+            "Gemini invoice parsing is not configured. Set GEMINI_API_KEY in Backend/.env and restart the backend.");
     }
 
     Result extract(InvoiceValidator.Image image) {
