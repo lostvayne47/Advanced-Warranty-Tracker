@@ -2,6 +2,40 @@
 
 ## Current task
 
+Found a stale frontend bundle in Backend/target/classes/static: port 5000 was
+serving an older extraction implementation without the review dialog, while
+previous browser verification used Vite on port 5173. Rebuilt current frontend
+with VITE_API_URL=/api, packaged with -Pbundle-frontend, and restarted backend.
+Verified live Chromium on http://localhost:5000/add-warranty: extraction POST
+returned HTTP 200 from Gemini, review dialog opened, select-all/apply populated
+product and purchase date. No warranty was saved. Backend README now explains
+how to refresh bundled assets; source edits alone only update the Vite page.
+
+Fixed generic API error handling: preserve server-provided 503 messages instead
+of mislabeling every failure as invoice storage unavailable. Disabled storage
+now explains that users can remove the selected image and save details, or
+configure Supabase. Local storage remains disabled; Gemini extraction does not
+require it. Verified 6 frontend unit tests, 8 focused browser tests and 12 API
+integration tests. Restarted local backend with the corrected storage message.
+
+Investigated missing invoice review: a live Chromium request received HTTP 200,
+opened the review, and applied product/date values successfully. API logs also
+show repeated Gemini 503 busy responses near the user's attempts. Replaced
+ephemeral extraction-error toast with an inline persistent alert and retry button;
+image/manual entries stay intact. Validate extraction response shape before
+rendering review. Ten desktop/mobile extraction tests and frontend build passed.
+Created ignored Frontend/.env from its example to persist the local API URL.
+
+Live Gemini verification now passed using a generated test invoice through the
+authenticated local extraction endpoint (HTTP 200). Correctly extracted product,
+brand/model/serial, retailer/invoice number, purchase date, INR 59990.00, and
+explicit expiry date. User's original invoice has not been tested. Fixed REST
+structured output configuration to responseMimeType + responseJsonSchema and
+required nullable fields to prevent partial extraction. Added phone validation
+and a clear provider-busy error. Local Backend/.env now uses gemini-3.6-flash;
+3.8 returned repeated provider high-demand errors. Three extractor tests passed.
+The API key loads from the ignored .env and was not printed or committed.
+
 Local configuration now loads automatically from Backend/.env (launch from
 Backend/ or repository root) using Spring config import. An ignored local file
 was created with a persistent random JWT secret and blank provider keys. Use

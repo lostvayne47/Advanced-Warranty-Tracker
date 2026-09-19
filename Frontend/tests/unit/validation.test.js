@@ -31,6 +31,9 @@ test("coverage cannot begin after expiry and password limit counts UTF-8 bytes",
 });
 
 test("API errors expose actionable messages and map invoice field errors", () => {
+  assert.equal(getApiError({ response: { status: 503, data: { message: "Gemini is temporarily busy." } } }), "Gemini is temporarily busy.");
+  assert.equal(getApiError({ response: { status: 503, data: { message: "Invoice storage is not configured." } } }), "Invoice storage is not configured.");
+  assert.match(getApiError({ response: { status: 503 } }), /service is temporarily unavailable/);
   assert.match(getApiError({ request: {} }), /Cannot reach/);
   assert.match(getApiError({ response: { status: 413 } }), /10 MB/);
   assert.deepEqual(getFieldErrors({ response: { data: { errors: { invoiceImage: "Invalid image", brand: "Too long" } } } }),

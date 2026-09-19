@@ -44,6 +44,26 @@ storage, follow [Supabase setup](../Database/SUPABASE_SETUP.md).
 
 ## Configuration
 
+### Frontend served on port 5000
+
+The page served by Spring Boot uses the last bundled frontend build. It does
+not update when source files or the Vite development server change. For live
+frontend development, open `http://localhost:5173`. To update the page on port
+5000, run from the repository root, then restart the backend and refresh the page:
+
+```powershell
+Push-Location Frontend
+$env:VITE_API_URL = '/api'
+npm.cmd run build
+Pop-Location
+Push-Location Backend
+.\mvnw.cmd -DskipTests -Pbundle-frontend package
+Pop-Location
+Remove-Item Env:VITE_API_URL
+```
+
+### Environment settings
+
 The default profile requires `DB_URL` (a JDBC PostgreSQL URL), `DB_USERNAME`,
 `DB_PASSWORD`, and `JWT_SECRET` (at least 32 UTF-8 bytes; use a strong random
 secret). Flyway applies versioned PostgreSQL migrations before Hibernate validates

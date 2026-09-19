@@ -71,12 +71,44 @@ test('Gemini configuration failure preserves manual form and select all applies 
   await expect(page.getByText('Gemini invoice parsing is not configured.', { exact: true })).toBeVisible();
   await expect(page.getByLabel('Product name', { exact: true })).toHaveValue('Keep this');
   fail = false;
-  await page.getByRole('button', { name: 'Extract invoice details' }).click();
+  await page.getByRole('button', { name: 'Retry invoice extraction' }).click();
   await page.getByRole('button', { name: 'Select all suggestions' }).click();
   await page.getByRole('button', { name: 'Apply selected details' }).click();
   await expect(page.getByLabel('Product name', { exact: true })).toHaveValue('Camera');
   await expect(page.getByLabel('Purchase date', { exact: true })).toHaveValue('2026-01-20');
   expect(state.writes).toEqual([]);
+});
+test('provider failure remains visible and retry opens review without losing the image', async ({ page }) => {
+  const state = await setup(page);
+  let attempts = 0;
+  await page.route('**/api/invoice-extractions', route => route.fulfill(++attempts === 1
+    ? { status: 503, json: { message: 'Gemini is temporarily busy. Try again shortly.' } }
+    : { json: { fields: { productName: 'Camera' }, warnings: [] } }));
+  await page.goto('/add-warranty');
+  await page.getByLabel('Product name', { exact: true }).fill('Keep this');
+  await page.locator('input[type=file]').setInputFiles({ name: 'invoice.png', mimeType: 'image/png', buffer: png });
+  await page.getByRole('button', { name: 'Extract invoice details' }).click();
+  await expect(page.getByRole('alert')).toContainText('Gemini is temporarily busy');
+  await page.waitForTimeout(5000);
+  await expect(page.getByRole('alert')).toContainText('Gemini is temporarily busy');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByLabel('Product name', { exact: true })).toHaveValue('Keep this');
+  await page.getByRole('button', { name: 'Retry invoice extraction' }).click();
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  await expect(page.getByRole('dialog', { name: 'Review extracted invoice' })).toBeVisible();
+  expect(state.writes).toEqual([]);
+});
+
+test('malformed extraction responses show a persistent error instead of crashing the review', async ({ page }) => {
+  await setup(page);
+  await page.route('**/api/invoice-extractions', route => route.fulfill({ json: { fields: null } }));
+  await page.goto('/add-warranty');
+  await page.locator('input[type=file]').setInputFiles({ name: 'invoice.png', mimeType: 'image/png', buffer: png });
+  await page.getByRole('button', { name: 'Extract invoice details' }).click();
+  await expect(page.getByRole('alert')).toContainText('unreadable invoice details');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Remove selected image' }).click();
+  await expect(page.getByRole('alert')).toHaveCount(0);
 });
 async function setup(page, options = {}) {
   const state = {
@@ -203,7 +235,7 @@ test("invalid login shows credentials error without calling it session expiry", 
 test("load errors offer retry rather than presenting an empty inventory", async ({ page }) => {
   const state = await setup(page, { failList: true });
   await page.goto("/items");
-  await expect(page.getByRole("alert")).toContainText("Invoice storage is unavailable");
+  await expect(page.getByRole("alert")).toContainText("Storage offline");
   state.failList = false;
   await page.getByRole("button", { name: "Try again" }).click();
   await expect(page.getByRole("button", { name: "Delete Camera", exact: true })).toBeVisible();
@@ -249,7 +281,7 @@ test("server validation displays field detail and storage errors retain the form
   await expect(page.getByText("Brand: Brand is too long.")).toBeVisible();
   state.writeStatus = 503;
   await page.getByRole("button", { name: "Save changes" }).click();
-  await expect(page.getByRole("alert")).toContainText("Invoice storage is unavailable");
+  await expect(page.getByRole("alert")).toContainText("Storage unavailable.");
   await expect(page.getByLabel("Brand", { exact: true })).toHaveValue("My brand");
 });
 

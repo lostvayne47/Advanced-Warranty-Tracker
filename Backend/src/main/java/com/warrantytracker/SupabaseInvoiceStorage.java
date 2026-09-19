@@ -75,7 +75,8 @@ class SupabaseInvoiceStorage implements InvoiceStorage, ApplicationRunner {
     }
 
     private HttpResponse<String> send(String method, String path, byte[] body, String contentType) {
-        if (!enabled) throw new StorageUnavailableException();
+        if (!enabled) throw new StorageUnavailableException(
+            "Invoice storage is not configured. Remove the selected image to save the warranty details without an attachment, or configure Supabase storage.");
         HttpRequest.Builder request = HttpRequest.newBuilder(URI.create(baseUrl + path))
             .timeout(Duration.ofSeconds(30)).header("apikey", serviceKey)
             .header("Authorization", "Bearer " + serviceKey);
@@ -103,4 +104,3 @@ class SupabaseInvoiceStorage implements InvoiceStorage, ApplicationRunner {
             throw new IllegalArgumentException("Invalid internal invoice key.");
     }
 }
-

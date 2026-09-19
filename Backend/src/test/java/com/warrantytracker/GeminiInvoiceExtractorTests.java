@@ -47,7 +47,9 @@ class GeminiInvoiceExtractorTests {
             assertThat(extractor.extract(image).fields()).containsEntry("purchasePrice", "1200.00");
             var sent = json.readTree(requests.getFirst());
             assertThat(sent.at("/contents/0/parts/0/inlineData/data").asText()).isEqualTo("AQID");
-            assertThat(sent.at("/generationConfig/responseFormat/text/schema/properties/fields/additionalProperties").asBoolean()).isFalse();
+            assertThat(sent.at("/generationConfig/responseMimeType").asText()).isEqualTo("application/json");
+            assertThat(sent.at("/generationConfig/responseJsonSchema/properties/fields/additionalProperties").isBoolean()).isTrue();
+            assertThat(sent.at("/generationConfig/responseJsonSchema/properties/fields/additionalProperties").asBoolean()).isFalse();
             assertThatThrownBy(() -> extractor.extract(image)).isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("quota").hasMessageNotContaining("secret-provider-error");
         } finally { server.stop(0); }

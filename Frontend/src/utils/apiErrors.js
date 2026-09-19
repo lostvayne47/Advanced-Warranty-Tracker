@@ -4,8 +4,8 @@ export function getApiError(error, fallback = "Something went wrong. Please try 
   if (status === 401) return serverMessage || "Your session has expired. Please sign in again.";
   if (status === 409) return serverMessage || "This item changed. Reload it before saving again.";
   if (status === 413) return "The invoice is too large. Choose an image up to 10 MB.";
-  if (status === 503) return "Invoice storage is unavailable. Please try again shortly.";
   if (typeof serverMessage === "string" && serverMessage.trim()) return serverMessage;
+  if (status === 503) return "The service is temporarily unavailable. Please try again shortly.";
   if (error.code === "ECONNABORTED") return "The request timed out. Check your connection and try again.";
   if (error.request && !error.response) return "Cannot reach the server. Check your connection and try again.";
   return fallback;

@@ -66,6 +66,7 @@ export function AddWarrantyPage() {
   const extracting = useRef(false);
   const extractionController = useRef(null);
   const [extraction, setExtraction] = useState(null);
+  const [extractionError, setExtractionError] = useState("");
   const [extractionProgress, setExtractionProgress] = useState("");
   useEffect(() => () => extractionController.current?.abort(), []);
 
@@ -78,6 +79,7 @@ export function AddWarrantyPage() {
     fileSequence.current++;
     extractionController.current?.abort();
     setExtraction(null);
+    setExtractionError("");
     setCheckingInvoice(false);
     setValues(initialValues);
     setInvoicePreview("");
@@ -117,6 +119,7 @@ export function AddWarrantyPage() {
   async function handleInvoiceChange(file) {
     extractionController.current?.abort();
     setExtraction(null);
+    setExtractionError("");
     const sequence = ++fileSequence.current;
     setValues((current) => ({ ...current, file: null }));
     setInvoicePreview("");
@@ -143,12 +146,14 @@ export function AddWarrantyPage() {
     extractionController.current = controller;
     try {
       extracting.current = true;
+      setExtractionError("");
       setIsExtracting(true);
       setExtractionProgress("Preparing invoice…");
       const result = await extractInvoiceData(values.file, { signal: controller.signal, onProgress: setExtractionProgress });
       if (sequence === fileSequence.current && !controller.signal.aborted) setExtraction(result);
     } catch (error) {
-      if (!controller.signal.aborted && sequence === fileSequence.current) toast.error(error.message || "Unable to extract invoice details. Enter them manually.");
+      if (!controller.signal.aborted && sequence === fileSequence.current)
+        setExtractionError(error.message || "Unable to extract invoice details. Enter them manually.");
     } finally {
       extracting.current = false;
       setIsExtracting(false);
@@ -279,8 +284,13 @@ export function AddWarrantyPage() {
               disabled={checkingInvoice || !values.file || isSubmitting}
               onClick={handleExtractInvoice}
             >
-              Extract invoice details
+              {extractionError ? "Retry invoice extraction" : "Extract invoice details"}
             </Button>
+            {extractionError ? <div role="alert" className="mt-3 rounded-xl border border-rose-400/30 bg-rose-400/10 p-4 text-sm text-rose-100">
+              <p className="font-semibold">Invoice details could not be extracted</p>
+              <p className="mt-1">{extractionError}</p>
+              <p className="mt-2">Your image and form entries are still here. Retry extraction or enter the details manually.</p>
+            </div> : null}
           </div>
 
           <div className="md:col-span-2 mt-2 border-t border-white/10 pt-5">
