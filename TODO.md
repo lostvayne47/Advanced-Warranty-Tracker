@@ -52,6 +52,8 @@ remain pending under task 2. Follow [DEPLOYMENT.md](DEPLOYMENT.md) for setup,
 deployment, smoke checks, and rollback. Docker and CI have not yet been executed.
 
 ## 5. Subsequent milestones - in progress
+- [x] Replace form OCR with Gemini image parsing and reviewed form suggestions.
+- [ ] Configure GEMINI_API_KEY and verify extraction quality on real sample invoices.
 - [x] Implement English image OCR extraction with explicit user review before saving.
 - [ ] Complete Google sign-in.
 - [ ] Complete optional Gmail connection, invoice selection/import, and disconnect.

@@ -3,9 +3,14 @@ import { test, expect } from "@playwright/test";
 const API = "http://127.0.0.1:5001";
 const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64");
 
-test('real OCR requires review and leaves existing entries unchanged until applied', async ({ page }) => {
+test('Gemini suggestions require review and leave existing entries unchanged until applied', async ({ page }) => {
   test.setTimeout(120000);
   const state = await setup(page);
+  await page.route('**/api/invoice-extractions', (route) => {
+    expect(route.request().headers()['content-type']).toContain('multipart/form-data; boundary=');
+    expect(route.request().postData()).toContain('name="invoiceImage"');
+    return route.fulfill({ json: { fields: { productName: 'Camera', purchaseDate: '2026-01-20' }, warnings: ['Warranty expiry was not stated.'] } });
+  });
   await page.goto('/add-warranty');
   await page.getByLabel('Product name', { exact: true }).fill('My entry');
   const data = await page.evaluate(() => {
@@ -21,6 +26,7 @@ test('real OCR requires review and leaves existing entries unchanged until appli
   await page.getByRole('button', { name: 'Extract invoice details' }).click();
   const dialog = page.getByRole('dialog', { name: 'Review extracted invoice' });
   await expect(dialog).toBeVisible({ timeout: 90000 });
+  await expect(dialog.getByText('Warranty expiry was not stated.')).toBeVisible();
   await expect(page.getByLabel('Product name', { exact: true })).toHaveValue('My entry');
   await expect(dialog.getByRole('button', { name: 'Apply selected details' })).toBeDisabled();
   await dialog.getByRole('checkbox', { name: /product name: Camera/i }).check();
@@ -33,11 +39,11 @@ function jwt(seconds = 3600) {
   return `header.${Buffer.from(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + seconds })).toString("base64url")}.signature`;
 }
 
-test('OCR cancellation restores the form without saving or replacing entries', async ({ page }) => {
+test('Gemini cancellation restores the form without saving or replacing entries', async ({ page }) => {
   const state = await setup(page);
-  await page.route('**/assets/ocr/worker.min.js', async (route) => {
+  await page.route('**/api/invoice-extractions', async (route) => {
     await new Promise((resolve) => setTimeout(resolve, 1500));
-    await route.continue().catch(() => {});
+    await route.fulfill({ json: { fields: { productName: 'Late result' }, warnings: [] } }).catch(() => {});
   });
   await page.goto('/add-warranty');
   await page.getByLabel('Product name', { exact: true }).fill('Keep this');
@@ -47,6 +53,29 @@ test('OCR cancellation restores the form without saving or replacing entries', a
   await expect(page.getByRole('button', { name: 'Save warranty', exact: true })).toBeEnabled();
   await expect(page.getByLabel('Product name', { exact: true })).toHaveValue('Keep this');
   await expect(page.getByRole('dialog')).not.toBeVisible();
+  await page.waitForTimeout(1700);
+  await expect(page.getByLabel('Product name', { exact: true })).toHaveValue('Keep this');
+  await expect(page.getByRole('dialog')).not.toBeVisible();
+  expect(state.writes).toEqual([]);
+});
+test('Gemini configuration failure preserves manual form and select all applies suggestions', async ({ page }) => {
+  const state = await setup(page);
+  let fail = true;
+  await page.route('**/api/invoice-extractions', route => route.fulfill(fail
+    ? { status: 503, json: { message: 'Gemini invoice parsing is not configured.' } }
+    : { json: { fields: { productName: 'Camera', purchaseDate: '2026-01-20' }, warnings: [] } }));
+  await page.goto('/add-warranty');
+  await page.getByLabel('Product name', { exact: true }).fill('Keep this');
+  await page.locator('input[type=file]').setInputFiles({ name: 'invoice.png', mimeType: 'image/png', buffer: png });
+  await page.getByRole('button', { name: 'Extract invoice details' }).click();
+  await expect(page.getByText('Gemini invoice parsing is not configured.', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('Product name', { exact: true })).toHaveValue('Keep this');
+  fail = false;
+  await page.getByRole('button', { name: 'Extract invoice details' }).click();
+  await page.getByRole('button', { name: 'Select all suggestions' }).click();
+  await page.getByRole('button', { name: 'Apply selected details' }).click();
+  await expect(page.getByLabel('Product name', { exact: true })).toHaveValue('Camera');
+  await expect(page.getByLabel('Purchase date', { exact: true })).toHaveValue('2026-01-20');
   expect(state.writes).toEqual([]);
 });
 async function setup(page, options = {}) {

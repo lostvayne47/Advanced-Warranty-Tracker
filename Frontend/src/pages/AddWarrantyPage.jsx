@@ -10,7 +10,7 @@ import { LoadError } from "@/components/ui/LoadError";
 import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { InvoiceViewer } from "@/components/InvoiceViewer";
 import { InvoiceExtractionReview } from "@/components/InvoiceExtractionReview";
-import { extractInvoiceData } from "@/services/invoiceOcr";
+import { extractInvoiceData } from "@/services/invoiceExtraction";
 import { appConfig } from "@/config/appConfig";
 import {
   createWarranty,
@@ -144,7 +144,7 @@ export function AddWarrantyPage() {
     try {
       extracting.current = true;
       setIsExtracting(true);
-      setExtractionProgress("Preparing OCR…");
+      setExtractionProgress("Preparing invoice…");
       const result = await extractInvoiceData(values.file, { signal: controller.signal, onProgress: setExtractionProgress });
       if (sequence === fileSequence.current && !controller.signal.aborted) setExtraction(result);
     } catch (error) {
@@ -237,7 +237,7 @@ export function AddWarrantyPage() {
               JPEG, PNG, or still WebP, up to 10 MB and 20 megapixels.
               {isEditing ? " Choose a new image only if you want to replace the saved invoice." : ""}
             </p>
-            <p className="mt-2 text-sm text-slate-300">English OCR runs on your device. Review suggestions before applying them. The invoice is uploaded only when you save.</p>
+            <p className="mt-2 text-sm text-slate-300">Extract invoice details sends this image to Google Gemini to read product and purchase details. Review the suggestions before applying them; your warranty is saved only when you choose Save.</p>
             {isEditing && values.fileName ? (
               <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
                 <span className="break-all text-slate-300">Saved invoice: {values.fileName}</span>

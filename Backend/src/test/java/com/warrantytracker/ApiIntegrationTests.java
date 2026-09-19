@@ -30,6 +30,15 @@ class ApiIntegrationTests {
     @Autowired PasswordEncoder passwords;
     @Autowired JwtEncoder encoder;
 
+    @Test void extractionRequiresLoginAndReportsMissingConfiguration() throws Exception {
+        MockMultipartFile image = new MockMultipartFile("invoiceImage", "invoice.png", "image/png", new byte[]{1});
+        mvc.perform(multipart("/api/invoice-extractions").file(image)).andExpect(status().isUnauthorized());
+        mvc.perform(multipart("/api/invoice-extractions").file(image)
+            .header("Authorization", "Bearer " + token("extract@example.com")))
+            .andExpect(status().isServiceUnavailable())
+            .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("GEMINI_API_KEY")));
+    }
+
     @BeforeEach void clearDatabase() {
         warranties.deleteAll();
         users.deleteAll();

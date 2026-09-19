@@ -88,16 +88,20 @@ Real frontend-to-backend and hosted storage verification is milestone 4.
 
 Project progress and resumption notes are kept in [TODO.md](../TODO.md) and
 [HANDOFF.md](../HANDOFF.md).
-## Invoice OCR
+## Gemini invoice parsing
 
-The add/edit form supports English OCR using [Tesseract.js](https://github.com/naptha/tesseract.js).
-Recognition runs on the device; the image is uploaded only when the warranty is
-saved. `npm run dev` and `npm run build` prepare locally served OCR assets from
-locked npm dependencies. No OCR API key or CDN request is required.
+Choose an image and select **Extract invoice details**. The authenticated backend
+sends the image to Google Gemini and returns form suggestions and warnings.
+Select individual suggestions or **Select all suggestions**, then apply them.
+Applying fills the form without saving; unselected existing entries are preserved.
+Unknown coverage and ambiguous values remain manual. PDF input is not supported.
 
-Choose an image, extract details, review recognized text, and select suggestions
-to apply. Applying suggestions does not save the warranty. Unselected existing
-entries are preserved. Ambiguous dates/prices, unlabelled products, and coverage
-expiry must be entered manually. Clear English printed invoices work best;
-PDF and handwriting support are not included. OCR can be canceled and has a
-90-second timeout. The generated OCR assets increase deployment size.
+Requires `VITE_API_URL` and a backend configured with `GEMINI_API_KEY`; see the
+[backend setup](../Backend/README.md#gemini-invoice-parsing). No API key belongs
+in the frontend. Extraction sends the image to Google before the warranty is
+saved, as explained beside the extraction control. Cancellation discards late
+results; an already submitted provider request may still finish.
+
+The old local OCR utility/assets remain available in source but are no longer
+used by the add/edit form. Browser tests use mocked Gemini endpoint responses;
+live extraction quality requires testing with a configured API key and invoices.

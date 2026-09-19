@@ -1,6 +1,19 @@
 # Project handoff
 
 ## Current task
+
+Latest change: replaced the add/edit form's local OCR flow with authenticated
+Gemini image parsing through `POST /api/invoice-extractions`. Server configuration:
+`GEMINI_API_KEY`, optional `GEMINI_MODEL` (default `gemini-3.8-flash`). No key was
+available in the development process, so live invoice quality is not verified.
+The backend sanitizes images and validates allowed output fields. Suggestions
+and warnings require review; select-all is available, and applying never saves.
+The UI explicitly explains the image is sent to Google before saving. Local OCR
+source/assets are retained but no longer invoked by the form. Historical OCR
+implementation and verification notes below describe the previous flow.
+Verified this increment: 15 backend tests (Gemini extractor + API integration),
+26 desktop/mobile browser tests, production frontend build, and diff whitespace
+check. Gemini responses are mocked in tests; no live provider request was made.
 Milestone 5 has started with OCR. Milestone 4 remains pending hosted setup and
 Docker verification. Preserve incremental changes and update this note after each part.
 Milestones 1-3 are implemented; do not rebuild them.

@@ -105,7 +105,34 @@ up to one hour. Tasks survive application restarts; monitor
 `public.storage_cleanup_task` for growing queues. Avoid deleting attachment rows
 manually: use the API so storage cleanup is queued.
 
-OCR is implemented in the browser; no extraction API endpoint is required.
+## Gemini invoice parsing
+
+Set `GEMINI_API_KEY` in the backend process environment and restart the API.
+`GEMINI_MODEL` defaults to `gemini-3.8-flash` and can be changed to a Gemini
+model supporting image input and structured output. Get a key from
+[Google AI Studio](https://aistudio.google.com/apikey). Never put it in a
+`VITE_*` variable or commit it. The `.env.example` file is reference only.
+
+Authenticated `POST /api/invoice-extractions` accepts multipart `invoiceImage`.
+The backend validates and sanitizes the image, sends it to Google Gemini, and
+returns `{ fields, warnings }` for review. This works with local H2 and does not
+require Supabase. Extraction does not save the image or create a warranty.
+The image is sent to Google when extraction is requested, before saving.
+Google's applicable API data handling and quota policies apply.
+
+Only allowed form fields are returned. Invalid dates, prices, enums and links
+are discarded. Unknown details and ambiguous dates remain manual; the prompt
+forbids invented warranty coverage and merging multiple invoice products.
+Model results still require human review. The provider request times out after
+60 seconds, with at most two concurrent extractions per backend instance.
+Missing configuration returns 503; quota/busy returns 429; provider failures or
+invalid output return 502; timeouts return 504. Upstream errors and keys are not
+returned to the browser. Canceling in the browser discards the result but may
+not stop an already submitted provider request.
+
+Integration follows Google's [structured output](https://ai.google.dev/gemini-api/docs/generate-content/structured-output)
+and [image input](https://ai.google.dev/gemini-api/docs/generate-content/image-understanding) documentation.
+
 Google/Gmail OAuth and reminder delivery remain on the root TODO list.
 
 ## Verification

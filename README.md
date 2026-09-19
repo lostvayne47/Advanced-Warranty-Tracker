@@ -9,9 +9,9 @@ is the high-level workflow and project map; setup details live in the linked gui
    only its own warranties.
 2. **Add a warranty.** Enter product, purchase, and coverage details, and
    optionally choose an invoice image.
-3. **Optionally extract invoice text.** English OCR runs in the browser. Review
-   the recognized text and select suggestions to apply. Nothing is saved yet;
-   ambiguous fields and warranty expiry remain manual.
+3. **Optionally parse the invoice.** The backend sends its image to Google Gemini.
+   Review the returned form suggestions and apply selected details. Nothing is
+   saved yet; missing or ambiguous fields remain manual.
 4. **Save.** The backend validates the form, saves the warranty in the database,
    and stores the invoice privately when Supabase storage is configured.
 5. **Manage coverage.** Use the dashboard or inventory to find, edit, or delete
@@ -21,18 +21,19 @@ is the high-level workflow and project map; setup details live in the linked gui
 ```mermaid
 flowchart LR
     User[User] --> UI[React frontend]
-    UI --> OCR[Optional on-device OCR and review]
-    OCR --> UI
+    API --> Gemini[Optional Gemini invoice parsing]
+    Gemini --> API
     UI --> API[Spring Boot API]
     API --> DB[(Database: accounts and warranties)]
     API --> Storage[Private invoice storage]
     Storage -. Temporary signed image link .-> UI
 ```
 
-The browser handles the interface and OCR. Spring Boot handles authentication,
+The browser handles the interface and extraction review. Spring Boot handles authentication,
 validation, account isolation, and storage access. Supabase provides PostgreSQL
 and private invoice storage in the intended hosted setup. Authentication is
 implemented by this application's backend, not Supabase Auth.
+Optional invoice parsing uses a server-only `GEMINI_API_KEY`; see the backend guide.
 
 ## What is where
 
@@ -70,7 +71,7 @@ fixture. They do not establish that hosted Supabase or a live deployment works.
 
 - **Implemented:** email/password authentication, user-scoped warranty CRUD,
   private storage integration, invoice viewing, deletion, session/error handling,
-  and English image OCR with explicit review.
+  and Gemini invoice parsing with explicit review (requires an API key).
 - **Prepared, awaiting hosted verification:** Supabase setup, deployment
   configuration, and release checks. Docker verification and live deployment
   remain pending.

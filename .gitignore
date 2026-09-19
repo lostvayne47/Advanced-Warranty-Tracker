@@ -1,2 +1,5 @@
+# Local configuration and secrets (in every directory).
 .env
-.env.production
+.env.*
+# Commit only the blank configuration template.
+!.env.example
