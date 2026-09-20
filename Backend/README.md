@@ -160,10 +160,19 @@ Google's applicable API data handling and quota policies apply.
 
 Only allowed form fields are returned. Invalid dates, prices, enums and links
 are discarded. Unknown details and ambiguous dates remain manual; the prompt
-forbids invented warranty coverage and merging multiple invoice products.
-Model results still require human review. The provider request times out after
-60 seconds, with at most two concurrent extractions per backend instance.
-Missing configuration returns 503; quota/busy returns 429; provider failures or
+forbids invented warranty durations and merging multiple invoice products.
+When no other start condition is stated, purchase date can supply coverage start.
+An explicit warranty duration can then supply expiry using calendar arithmetic
+(one year ends on the same date next year, clamped for leap days). Inferred dates
+are explained in review warnings; explicit dates and start conditions take priority.
+Model results still require human review. Provider requests share a 60-second
+budget, with at most two concurrent extractions per backend instance. Gemini
+503 responses retry up to twice with increasing delays and jitter; Retry-After
+is honored when it fits within the remaining budget. Other errors are not retried.
+Failure logs include the model endpoint, HTTP status and attempt number, without
+API keys, invoice contents or raw provider response bodies.
+Missing configuration or persistent provider overload returns 503; quota/local
+concurrency limits return 429; other provider failures or
 invalid output return 502; timeouts return 504. Upstream errors and keys are not
 returned to the browser. Canceling in the browser discards the result but may
 not stop an already submitted provider request.

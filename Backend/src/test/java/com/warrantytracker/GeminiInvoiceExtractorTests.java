@@ -4,6 +4,7 @@ import com.sun.net.httpserver.HttpServer;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.server.ResponseStatusException;
 import tools.jackson.databind.ObjectMapper;
@@ -52,6 +53,50 @@ class GeminiInvoiceExtractorTests {
             assertThat(sent.at("/generationConfig/responseJsonSchema/properties/fields/additionalProperties").asBoolean()).isFalse();
             assertThatThrownBy(() -> extractor.extract(image)).isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("quota").hasMessageNotContaining("secret-provider-error");
+        } finally { server.stop(0); }
+    }
+
+    @Test void retriesTemporaryOverloadAndReturnsExtractedFields() throws Exception {
+        checkRetrySequence(503, null, true, 3);
+    }
+
+    @Test void stopsAfterThreeOverloadResponses() throws Exception {
+        checkRetrySequence(503, null, false, 3);
+    }
+
+    @Test void doesNotRetryAuthenticationFailures() throws Exception {
+        checkRetrySequence(403, null, false, 1);
+    }
+
+    @Test void doesNotWaitBeyondRequestBudgetForRetryAfter() throws Exception {
+        checkRetrySequence(503, "120", false, 1);
+    }
+
+    private void checkRetrySequence(int failureStatus, String retryAfter, boolean recover, int expectedRequests) throws Exception {
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        AtomicInteger count = new AtomicInteger();
+        List<String> bodies = Collections.synchronizedList(new ArrayList<>());
+        server.createContext("/", exchange -> {
+            bodies.add(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            boolean success = count.incrementAndGet() == 3 && recover;
+            byte[] body = (success ? response(Map.of("productName", "Camera")) : "secret-provider-error")
+                .getBytes(StandardCharsets.UTF_8);
+            if (retryAfter != null) exchange.getResponseHeaders().set("Retry-After", retryAfter);
+            exchange.sendResponseHeaders(success ? 200 : failureStatus, body.length);
+            exchange.getResponseBody().write(body);
+            exchange.close();
+        });
+        server.start();
+        try {
+            var extractor = new GeminiInvoiceExtractor("test-key", URI.create("http://127.0.0.1:" + server.getAddress().getPort()), json);
+            var image = new InvoiceValidator.Image(new byte[]{1, 2, 3}, "image/png", "png", "invoice.png");
+            if (recover) assertThat(extractor.extract(image).fields()).containsEntry("productName", "Camera");
+            else assertThatThrownBy(() -> extractor.extract(image)).isInstanceOfSatisfying(ResponseStatusException.class, ex -> {
+                assertThat(ex.getStatusCode().value()).isEqualTo(failureStatus == 503 ? 503 : 502);
+                assertThat(ex.getReason()).doesNotContain("secret-provider-error");
+            });
+            assertThat(count.get()).isEqualTo(expectedRequests);
+            assertThat(new HashSet<>(bodies)).hasSize(1);
         } finally { server.stop(0); }
     }
 }

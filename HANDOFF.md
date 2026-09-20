@@ -2,6 +2,25 @@
 
 ## Current task
 
+Improved the extraction prompt to relate purchase/start dates and explicitly
+stated warranty durations. Default start to purchase date unless a different
+start condition applies; derive expiry using calendar arithmetic, preserve
+explicit dates, flag assumptions/conflicts, and never invent duration. Updated
+schema descriptions to permit these derivations. Restarted backend. Live tests
+passed for 2026-09-08 + 1 year, leap-day clamping, and missing activation date
+(no derived dates). The activation test first hit provider 503, then passed on
+a fresh request. These are model suggestions for review, not deterministic rules.
+
+Debugged Gemini 503 on 2026-09-20. The configured gemini-3.6-flash is listed
+by the live Models API; both a text request and a synthetic invoice request
+succeeded. The earlier 503 did not recur during this debug run, so its original
+provider response body remains unknown. Added up to two retries for HTTP 503,
+sharing a 60-second total budget, respecting Retry-After, and logging only
+endpoint/status/attempt. All 19 focused extractor/API tests passed. Restarted
+the local backend and verified authenticated POST /api/invoice-extractions:
+HTTP 200 in 30 seconds, with 11 correct synthetic invoice fields. No warranty
+was saved; the user's actual invoice has not been tested.
+
 Found a stale frontend bundle in Backend/target/classes/static: port 5000 was
 serving an older extraction implementation without the review dialog, while
 previous browser verification used Vite on port 5173. Rebuilt current frontend
