@@ -1,0 +1,206 @@
+# Warranty Tracker API
+
+Spring Boot 4.0.8, Java 21+, Maven Wrapper, Spring Security JWT authentication,
+and Spring Data JPA. No global Maven installation is needed.
+
+## Run locally (PowerShell)
+
+One-time setup: copy `Backend/.env.example` to `Backend/.env` and fill in your
+keys. The file is ignored by Git. Generate `JWT_SECRET` once (at least 32 random
+bytes) and keep it in this file so sessions survive restarts. For example, from
+`Backend/`, this generates a secret and writes it without printing it:
+
+```powershell
+if (Test-Path .env) { throw 'Backend/.env already exists; edit it instead.' }
+Copy-Item .env.example .env -ErrorAction Stop
+$jwtBytes = New-Object byte[] 48
+$jwtRng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+$jwtRng.GetBytes($jwtBytes)
+$jwtRng.Dispose()
+$settings = [IO.File]::ReadAllText((Join-Path (Get-Location) '.env'))
+$settings = $settings.Replace('JWT_SECRET=', 'JWT_SECRET=' + [Convert]::ToBase64String($jwtBytes))
+[IO.File]::WriteAllText((Join-Path (Get-Location) '.env'), $settings)
+```
+
+Run from the repository root:
+
+```powershell
+cd Backend
+.\mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=local"
+```
+
+The local profile starts at `http://localhost:5000/api` and persists data in
+`Backend/data/` using H2. The first build downloads Maven and dependencies.
+Keep the same JWT secret across restarts to preserve unexpired sessions.
+Tokens expire after one hour; sign in again when they expire. Local logout
+discards the token; server-side token revocation/refresh is not implemented.
+Use the local profile only for development.
+
+Set `VITE_API_URL=http://localhost:5000/api` in `Frontend/.env` and restart Vite.
+Sign out of any existing demo session before logging in to the real backend.
+Create a new account: demo accounts and browser-local warranties are not migrated.
+Invoice storage is disabled in local-only mode. To use real private receipt
+storage, follow [Supabase setup](../Database/SUPABASE_SETUP.md).
+
+## Configuration
+
+### Frontend served on port 5000
+
+The page served by Spring Boot uses the last bundled frontend build. It does
+not update when source files or the Vite development server change. For live
+frontend development, open `http://localhost:5173`. To update the page on port
+5000, run from the repository root, then restart the backend and refresh the page:
+
+```powershell
+Push-Location Frontend
+$env:VITE_API_URL = '/api'
+npm.cmd run build
+Pop-Location
+Push-Location Backend
+.\mvnw.cmd -DskipTests -Pbundle-frontend package
+Pop-Location
+Remove-Item Env:VITE_API_URL
+```
+
+### Environment settings
+
+The default profile requires `DB_URL` (a JDBC PostgreSQL URL), `DB_USERNAME`,
+`DB_PASSWORD`, and `JWT_SECRET` (at least 32 UTF-8 bytes; use a strong random
+secret). Flyway applies versioned PostgreSQL migrations before Hibernate validates
+the resulting schema. Hibernate does not modify production tables. Flyway history
+lives in `warranty_migrations`; application tables live in `public`.
+The `supabase` profile uses the `SUPABASE_DB_*` variables instead and also
+applies the private bucket and browser-access restrictions.
+
+`PORT` defaults to 5000. `CORS_ORIGINS` is a comma-separated list of allowed
+frontend origins, defaulting to `http://localhost:5173`.
+`Backend/.env` is automatically loaded when starting from `Backend/` or the
+repository root. All existing settings (Gemini, JWT, database, Supabase, port,
+and CORS) can go there. Use unquoted `KEY=value` lines and standalone `#` comments;
+this uses Spring's properties-file import syntax, not shell `export` syntax.
+Restart after changes. Environment variables and command-line settings can
+still override file values in deployment. A missing `.env` is allowed.
+The working directory's `.env` is loaded first; `Backend/.env`, when present,
+takes precedence over it. `.env.example` remains a blank tracked template.
+No secret keys belong in Vite; only its public API URL. Use HTTPS for deployment.
+
+## API
+
+| Method | Path | Result |
+| --- | --- | --- |
+| POST | /api/auth/signup | 201 with `{ token, user: { id, name, email } }` |
+| POST | /api/auth/login | 200 with the same session shape |
+| GET | /api/warranties | Current user's warranties, newest first |
+| POST | /api/warranties | 201 with the created warranty |
+| GET | /api/warranties/{id} | One owned warranty |
+| PUT | /api/warranties/{id} | Replace editable fields; requires current `version` |
+| DELETE | /api/warranties/{id} | 204; deletes one owned warranty |
+
+Signup takes JSON `{ name, email, password }`; login takes `{ email, password }`.
+Passwords require 6–72 characters and at most 72 UTF-8 bytes, matching the
+frontend's current minimum. Passwords are BCrypt-hashed. Email identity is
+case-insensitive and stored lowercase.
+
+All warranty endpoints require `Authorization: Bearer <token>`. Ownership is
+derived only from the verified JWT. Another user's warranty returns 404.
+IDs and timestamps are generated by the server; client ownership and timestamp
+fields are not bound. Creation ignores a submitted version; updates use it only
+as a precondition, backed by JPA optimistic locking.
+
+Create/update accept JSON or the frontend's `multipart/form-data` format.
+Required fields are `productName`, `purchaseDate`, and `expiryDate`.
+`warrantyType` defaults to `MANUFACTURER`. All existing product, purchase,
+coverage, support, and notes fields are supported. For JSON, send null or omit
+optional fields; multipart empty optional strings become null. Dates use
+`YYYY-MM-DD`. PUT replaces the editable fields, so submit the full form.
+
+Errors include a `message`, and validation errors include an `errors` map.
+Typical statuses: 400 invalid input, 401 invalid/expired session, 404 missing or
+unowned warranty, 409 duplicate account or conflicting edit.
+
+Create/update accept an optional `invoiceImage` file. With Supabase configured,
+the backend validates and sanitizes the image, uploads to the private `invoices`
+bucket, and records its metadata. JPEG, PNG, and still WebP images up to 10 MB
+and 20 megapixels are supported; sanitized WebP images are stored as PNG.
+The stored bytes must also remain within 10 MB. Original client paths are
+removed from filenames; originals, EXIF metadata and trailing content are not retained.
+This is image validation/sanitization, not a malware-signature scanning service.
+
+GET list/detail responses include `fileName` and `invoiceImageUrl` (a five-minute
+signed URL) for receipts. Refresh the warranty data to obtain a new URL after
+expiry. Mutation responses include `fileName`; fetch the warranty to obtain
+its download URL. Storage keys and service credentials are never response fields.
+A save without a new file preserves its receipt; a save with a new file replaces it.
+An explicitly empty/corrupt file returns 400, oversized files return 413, and
+unavailable/unconfigured storage returns 503 without committing the save.
+
+Deleted/replaced files are queued in the same transaction as their metadata
+change and removed asynchronously. Upload intents are recorded in an independent
+transaction before network access; abandoned uploads are eligible for cleanup
+after an hour. A row lock prevents cleanup while a save is in progress. The worker
+runs each minute, keeps referenced files, and retries failed deletion with backoff
+up to one hour. Tasks survive application restarts; monitor
+`public.storage_cleanup_task` for growing queues. Avoid deleting attachment rows
+manually: use the API so storage cleanup is queued.
+
+## Gemini invoice parsing
+
+Set `GEMINI_API_KEY=your-key` in `Backend/.env` and restart the API.
+`GEMINI_MODEL` defaults to `gemini-3.8-flash` and can be changed to a Gemini
+model supporting image input and structured output. Get a key from
+[Google AI Studio](https://aistudio.google.com/apikey). Never put it in a
+`VITE_*` variable or commit it. The `.env.example` file is reference only.
+
+Authenticated `POST /api/invoice-extractions` accepts multipart `invoiceImage`.
+The backend validates and sanitizes the image, sends it to Google Gemini, and
+returns `{ fields, warnings }` for review. This works with local H2 and does not
+require Supabase. Extraction does not save the image or create a warranty.
+The image is sent to Google when extraction is requested, before saving.
+Google's applicable API data handling and quota policies apply.
+
+Only allowed form fields are returned. Invalid dates, prices, enums and links
+are discarded. Unknown details and ambiguous dates remain manual; the prompt
+forbids invented warranty durations and merging multiple invoice products.
+When no other start condition is stated, purchase date can supply coverage start.
+An explicit warranty duration can then supply expiry using calendar arithmetic
+(one year ends on the same date next year, clamped for leap days). Inferred dates
+are explained in review warnings; explicit dates and start conditions take priority.
+Model results still require human review. Provider requests share a 60-second
+budget, with at most two concurrent extractions per backend instance. Gemini
+503 responses retry up to twice with increasing delays and jitter; Retry-After
+is honored when it fits within the remaining budget. Other errors are not retried.
+Failure logs include the model endpoint, HTTP status and attempt number, without
+API keys, invoice contents or raw provider response bodies.
+Missing configuration or persistent provider overload returns 503; quota/local
+concurrency limits return 429; other provider failures or
+invalid output return 502; timeouts return 504. Upstream errors and keys are not
+returned to the browser. Canceling in the browser discards the result but may
+not stop an already submitted provider request.
+
+Integration follows Google's [structured output](https://ai.google.dev/gemini-api/docs/generate-content/structured-output)
+and [image input](https://ai.google.dev/gemini-api/docs/generate-content/image-understanding) documentation.
+
+Google/Gmail OAuth and reminder delivery remain on the root TODO list.
+
+## Verification
+
+```powershell
+.\mvnw.cmd verify
+```
+
+Authentication/CRUD integration tests use in-memory H2 and actual signed JWTs.
+They cover password hashing/login, invalid and expired tokens, owner CRUD,
+cross-user isolation, frontend multipart create/update, protected fields,
+validation, stale versions, CORS, and rejection of corrupt uploads.
+Storage integration tests start an isolated PostgreSQL 17 instance using native
+test binaries (no Docker required). They apply all three migrations and exercise
+the real HTTP storage client against a local Supabase API test double, including
+ownership, replacement, rollback, cleanup retries, and signing failures.
+Image tests cover JPEG/PNG/WebP decoding and sanitization. These do not verify
+a hosted Supabase project. On Linux, run PostgreSQL tests as a non-root user.
+
+The runnable artifact is `target/backend-0.0.1-SNAPSHOT.jar`.
+Run it with the same environment settings:
+`java -jar target/backend-0.0.1-SNAPSHOT.jar --spring.profiles.active=local`.
+
+Framework reference: [Spring Security JWT resource server](https://docs.spring.io/spring-security/reference/servlet/oauth2/resource-server/jwt.html).

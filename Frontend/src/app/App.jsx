@@ -1,14 +1,15 @@
 import { BrowserRouter } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import { AuthProvider } from "@/context/AuthContext";
+import { ThemeContext } from "@/context/ThemeContext";
 import { useLocalTheme } from "@/hooks/useLocalTheme";
 import { AppRouter } from "@/routes/AppRouter";
 
 function AppContent() {
-  useLocalTheme();
+  const theme = useLocalTheme();
 
   return (
-    <>
+    <ThemeContext.Provider value={theme}>
       <AppRouter />
       <Toaster
         position="top-right"
@@ -21,7 +22,7 @@ function AppContent() {
           },
         }}
       />
-    </>
+    </ThemeContext.Provider>
   );
 }
 

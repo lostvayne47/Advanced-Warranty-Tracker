@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useAuth } from "@/hooks/useAuth";
 import { validateAuth } from "@/utils/validation";
+import { getApiError, getFieldErrors } from "@/utils/apiErrors";
 
 const initialValues = {
   name: "",
@@ -31,11 +32,12 @@ export function SignupPage() {
 
     try {
       setIsSubmitting(true);
-      await signup(values);
+      await signup({ ...values, name: values.name.trim(), email: values.email.trim() });
       toast.success("Your account is ready.");
       navigate("/dashboard", { replace: true });
     } catch (error) {
-      toast.error(error.response?.data?.message || "Unable to create your account.");
+      setErrors(getFieldErrors(error));
+      toast.error(getApiError(error, "Unable to create your account."));
     } finally {
       setIsSubmitting(false);
     }

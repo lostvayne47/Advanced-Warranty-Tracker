@@ -1,6 +1,7 @@
 import { Bell, Search } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/Button";
+import { ThemeSwitcher } from "@/components/ui/ThemeSwitcher";
 
 export function Navbar() {
   const { user, logout } = useAuth();
@@ -17,6 +18,7 @@ export function Navbar() {
             <Search className="h-4 w-4" />
             Search coming soon
           </div>
+          <ThemeSwitcher />
           <button className="rounded-full border border-white/10 bg-white/5 p-3 text-slate-300 transition hover:bg-white/10">
             <Bell className="h-4 w-4" />
           </button>

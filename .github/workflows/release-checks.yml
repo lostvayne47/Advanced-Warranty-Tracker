@@ -1,0 +1,48 @@
+name: Release checks
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: Frontend/package-lock.json
+      - run: chmod +x Backend/mvnw
+      - run: npm ci
+        working-directory: Frontend
+      - run: npm audit --audit-level=moderate
+        working-directory: Frontend
+      - run: npx playwright install --with-deps chromium
+        working-directory: Frontend
+      - run: npm test
+        working-directory: Frontend
+      - run: npm run test:e2e
+        working-directory: Frontend
+      - run: npm run test:release
+        working-directory: Frontend
+      - name: Build container without publishing
+        run: docker build -t warranty-tracker:verify .
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: verification-results
+          path: |
+            Frontend/test-results/
+            Backend/target/surefire-reports/
+            Backend/target/release-server.log

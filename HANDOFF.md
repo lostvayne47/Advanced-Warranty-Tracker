@@ -1,0 +1,179 @@
+# Project handoff
+
+## Current task
+
+Connected hosted Supabase on 2026-10-05 through the direct database endpoint. Corrected the ignored Backend/.env JDBC URL to keep credentials separate. Supabase profile starts successfully; Flyway V1-V3 applied, database readiness is UP, and startup validated the private invoices bucket. Backend running on port 5000. Hosted receipt lifecycle and user isolation verification remain pending.
+
+Improved the extraction prompt to relate purchase/start dates and explicitly
+stated warranty durations. Default start to purchase date unless a different
+start condition applies; derive expiry using calendar arithmetic, preserve
+explicit dates, flag assumptions/conflicts, and never invent duration. Updated
+schema descriptions to permit these derivations. Restarted backend. Live tests
+passed for 2026-09-08 + 1 year, leap-day clamping, and missing activation date
+(no derived dates). The activation test first hit provider 503, then passed on
+a fresh request. These are model suggestions for review, not deterministic rules.
+
+Debugged Gemini 503 on 2026-09-20. The configured gemini-3.6-flash is listed
+by the live Models API; both a text request and a synthetic invoice request
+succeeded. The earlier 503 did not recur during this debug run, so its original
+provider response body remains unknown. Added up to two retries for HTTP 503,
+sharing a 60-second total budget, respecting Retry-After, and logging only
+endpoint/status/attempt. All 19 focused extractor/API tests passed. Restarted
+the local backend and verified authenticated POST /api/invoice-extractions:
+HTTP 200 in 30 seconds, with 11 correct synthetic invoice fields. No warranty
+was saved; the user's actual invoice has not been tested.
+
+Found a stale frontend bundle in Backend/target/classes/static: port 5000 was
+serving an older extraction implementation without the review dialog, while
+previous browser verification used Vite on port 5173. Rebuilt current frontend
+with VITE_API_URL=/api, packaged with -Pbundle-frontend, and restarted backend.
+Verified live Chromium on http://localhost:5000/add-warranty: extraction POST
+returned HTTP 200 from Gemini, review dialog opened, select-all/apply populated
+product and purchase date. No warranty was saved. Backend README now explains
+how to refresh bundled assets; source edits alone only update the Vite page.
+
+Fixed generic API error handling: preserve server-provided 503 messages instead
+of mislabeling every failure as invoice storage unavailable. Disabled storage
+now explains that users can remove the selected image and save details, or
+configure Supabase. Local storage remains disabled; Gemini extraction does not
+require it. Verified 6 frontend unit tests, 8 focused browser tests and 12 API
+integration tests. Restarted local backend with the corrected storage message.
+
+Investigated missing invoice review: a live Chromium request received HTTP 200,
+opened the review, and applied product/date values successfully. API logs also
+show repeated Gemini 503 busy responses near the user's attempts. Replaced
+ephemeral extraction-error toast with an inline persistent alert and retry button;
+image/manual entries stay intact. Validate extraction response shape before
+rendering review. Ten desktop/mobile extraction tests and frontend build passed.
+Created ignored Frontend/.env from its example to persist the local API URL.
+
+Live Gemini verification now passed using a generated test invoice through the
+authenticated local extraction endpoint (HTTP 200). Correctly extracted product,
+brand/model/serial, retailer/invoice number, purchase date, INR 59990.00, and
+explicit expiry date. User's original invoice has not been tested. Fixed REST
+structured output configuration to responseMimeType + responseJsonSchema and
+required nullable fields to prevent partial extraction. Added phone validation
+and a clear provider-busy error. Local Backend/.env now uses gemini-3.6-flash;
+3.8 returned repeated provider high-demand errors. Three extractor tests passed.
+The API key loads from the ignored .env and was not printed or committed.
+
+Local configuration now loads automatically from Backend/.env (launch from
+Backend/ or repository root) using Spring config import. An ignored local file
+was created with a persistent random JWT secret and blank provider keys. Use
+unquoted KEY=value lines; restart after edits. Environment variables can still
+override file values. Verified startup without shell-provided JWT_SECRET and
+readiness health. Keep real keys out of tracked .env.example files.
+
+Latest change: replaced the add/edit form's local OCR flow with authenticated
+Gemini image parsing through `POST /api/invoice-extractions`. Server configuration:
+`GEMINI_API_KEY`, optional `GEMINI_MODEL` (default `gemini-3.8-flash`). No key was
+available in the development process, so live invoice quality is not verified.
+The backend sanitizes images and validates allowed output fields. Suggestions
+and warnings require review; select-all is available, and applying never saves.
+The UI explicitly explains the image is sent to Google before saving. Local OCR
+source/assets are retained but no longer invoked by the form. Historical OCR
+implementation and verification notes below describe the previous flow.
+Verified this increment: 15 backend tests (Gemini extractor + API integration),
+26 desktop/mobile browser tests, production frontend build, and diff whitespace
+check. Gemini responses are mocked in tests; no live provider request was made.
+Milestone 5 has started with OCR. Milestone 4 remains pending hosted setup and
+Docker verification. Preserve incremental changes and update this note after each part.
+Milestones 1-3 are implemented; do not rebuild them.
+
+## Task 5 increments
+1. OCR implemented: Tesseract.js runs English image recognition in browser;
+   predev/prebuild copies locked npm worker/core/language assets to the app's
+   public/assets/ocr directory (generated, ignored). No external OCR service or
+   nonexistent invoice-extractions API is used. Existing /assets/** permits
+   loading these assets in the bundled backend deployment.
+2. Review dialog requires explicit field selection before applying suggestions;
+   never auto-saves. Raw text remains available for manual entry. Parser uses
+   labelled fields, ISO dates, and explicit currency/decimal totals; ambiguous
+   fields and coverage expiry remain manual. Cancellation, timeout, route/file
+   changes discard stale results. Manual input remains available on failure.
+3. Verified: production build, six unit tests, 22 browser tests including real
+   OCR on desktop/mobile, and two additional cancellation tests all passed.
+   npm install audit reported zero vulnerabilities. Task 5 OCR is complete;
+   next task 5 increment is Google sign-in. No backend changes in this increment.
+4. Next milestones: Google sign-in, optional Gmail import/disconnect, scheduled
+   reminders. These are not implemented. Hosted Google integration will need
+   OAuth project credentials and approved redirect URLs; no credentials exist.
+
+## Task 4 increments
+1. Complete: npm audit fix applied compatible updates;
+   npm audit reports zero vulnerabilities. Real release suite builds frontend
+   into API JAR, starts isolated PostgreSQL + local Storage HTTP fixture, then
+   runs desktop/mobile signup/create/edit/view/delete/isolation browser flows.
+   Command: cd Frontend; npm.cmd run test:release.
+   Passed: 22 backend tests and 4 release browser tests (desktop/mobile),
+   including real packaged API, PostgreSQL, receipt replacement/cleanup,
+   user isolation, and minimal health endpoints. Storage remains a fixture.
+2. Prepared: Docker deployment (default; no hosting choice received yet),
+   minimal public health/readiness checks, same-origin bundled SPA routes,
+   release workflow/docs. Docker is not installed locally.
+3. Complete: DEPLOYMENT.md covers secrets, Compose startup, HTTPS proxy,
+   hosted acceptance checks, repeatable tests, and rollback. Added explicit
+   runtime group and shell-script LF handling for builds from Windows checkouts.
+4. Pending: Docker build verification and actual hosted deployment. Docker is
+   unavailable locally; no hosted credentials or target have been provided.
+   Next: on a Docker-enabled host, follow DEPLOYMENT.md and create/configure
+   Supabase using Database/SUPABASE_SETUP.md. Do not claim a live deployment.
+
+## Latest request: recheck remaining task 3
+- Rechecked delete confirmation/retry, signed invoice viewing/refresh, and
+  session/error handling. No remaining task 3 implementation items were found.
+- After the dependency updates, all 4 frontend unit tests passed again;
+  the 20-test desktop/mobile browser run reports passed with no failed tests
+  in Frontend/test-results/.last-run.json.
+- Task 4 files are preserved as incremental work. Docker is unavailable locally;
+  the container and GitHub workflow have not been executed. Deployment docs are
+  now written; live Supabase/hosting setup remains pending.
+
+## Existing state
+- Milestone 1 implemented: Spring Boot JWT authentication and user-scoped CRUD.
+- Milestone 2 code implemented; 22 backend tests passed, including native
+  PostgreSQL migrations and a local Supabase HTTP test double. Hosted Supabase
+  does not exist yet; setup is documented in Database/SUPABASE_SETUP.md.
+- Existing uncommitted backend changes belong to milestone 2. Preserve them.
+- No project AGENTS.md found. Do not delegate unless explicitly authorized.
+
+## Task 3 increments
+1. Complete: session expiry event updates React auth,
+   JWT expiry timer/restore checks, stale-request protection, cross-tab sync,
+   shared API errors, field-error mapping, retryable inventory hook, dashboard
+   load-error state. Login 401 does not clear unrelated session state.
+2. Complete: native modal confirmation, delete API/demo
+   service, desktop/mobile actions, inventory removal only on successful delete,
+   receipt viewer fetching fresh URLs with explicit refresh/error recovery.
+3. Complete: edit loading failure prevents blank saves,
+   null fields normalized, conflict reload confirmation, retained form on errors,
+   saved-receipt viewing, JPEG/PNG/WebP/size/pixel validation, stale file checks,
+   upload removal, disabled duplicate submissions, field/server error summary.
+4. Complete: Playwright installed (Chromium), desktop/mobile browser coverage
+   in Frontend/tests/browser/integration.spec.js; Node unit tests in tests/unit.
+   Unit tests: 4 passed. Browser tests: 20 passed (10 scenarios x 2 viewports).
+
+## API facts
+- GET /warranties and /warranties/{id} return fileName/invoiceImageUrl.
+- Signed receipt URLs expire in five minutes; fetch the item again to refresh.
+- POST/PUT mutations return fileName but no signed URL; updates require version.
+- DELETE /warranties/{id} returns 204; receipt cleanup is asynchronous.
+- Errors have message and optional errors field map; 401 means expired/invalid
+  session, 409 stale edit, 413 oversized file, 503 storage unavailable.
+- Receipts: JPEG/PNG/still WebP, max 10 MiB, max 20 million pixels, each side
+  <=12000 pixels. Backend validates/re-encodes content.
+
+## Resume
+Read this file and TODO.md, then inspect git diff/status. Frontend uses React 19,
+Vite, Tailwind, Axios. Use npm.cmd on Windows (npm.ps1 is blocked).
+No frontend test framework was present at task start.
+
+Verification: production builds passed after increment 1 and after increments
+2/3; 4 unit tests and 20 browser tests passed. Run npm.cmd run test:e2e for browser tests
+(starts isolated Vite on port 5174, mocks API port 5001; no hosted credentials).
+Next: milestone 4 real frontend/backend end-to-end verification and deployment.
+Hosted Supabase setup remains pending and must not be marked verified. All
+implementation changes are in the working tree; no commits were created.
+
+Dependency note: task 4 ran npm audit fix within compatible ranges; all 11
+previously reported frontend advisories are resolved (zero audit findings).
