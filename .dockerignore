@@ -2,7 +2,8 @@
 **/node_modules
 **/dist
 **/target
-**/data
+# Exclude the backend's local database, while retaining Frontend/src/data.
+Backend/data
 **/.env
 **/.env.*
 **/*.log
