@@ -19,10 +19,10 @@ in milestone 2. Setup instructions: [Backend/README.md](Backend/README.md).
 - [x] Persist attachment metadata and provide authorized signed download URLs.
 - [x] Handle storage cleanup and failed transactions with a durable retry queue.
 - [x] Prepare setup instructions for a new Supabase project.
-- [ ] Create/configure the hosted Supabase project and apply migrations there.
+- [x] Create/configure the hosted Supabase project and apply migrations there.
 - [ ] Verify hosted upload, signed download, replacement, and deletion cleanup.
 
-No hosted project is available yet. Follow [Database/SUPABASE_SETUP.md](Database/SUPABASE_SETUP.md)
+Hosted project connected on 2026-10-05: migrations V1-V3 applied, database readiness UP, and private bucket startup validation passed. Hosted receipt lifecycle verification remains pending. Follow [Database/SUPABASE_SETUP.md](Database/SUPABASE_SETUP.md)
 when creating it. Automated checks pass against PostgreSQL 17 and a local
 Supabase Storage HTTP test double; they do not substitute for hosted verification.
 

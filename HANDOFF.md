@@ -2,6 +2,8 @@
 
 ## Current task
 
+Connected hosted Supabase on 2026-10-05 through the direct database endpoint. Corrected the ignored Backend/.env JDBC URL to keep credentials separate. Supabase profile starts successfully; Flyway V1-V3 applied, database readiness is UP, and startup validated the private invoices bucket. Backend running on port 5000. Hosted receipt lifecycle and user isolation verification remain pending.
+
 Improved the extraction prompt to relate purchase/start dates and explicitly
 stated warranty durations. Default start to purchase date unless a different
 start condition applies; derive expiry using calendar arithmetic, preserve
