@@ -20,7 +20,9 @@ export async function login(values) {
     return session;
   }
 
-  const { data } = await api.post("/auth/login", values);
+  const { data } = await api.post("/auth/login", values, {
+    skipSessionExpiry: true, headers: { Authorization: undefined },
+  });
   persistSession(data);
   return data;
 }
@@ -32,7 +34,25 @@ export async function signup(values) {
     return session;
   }
 
-  const { data } = await api.post("/auth/signup", values);
+  const { data } = await api.post("/auth/signup", values, {
+    skipSessionExpiry: true, headers: { Authorization: undefined },
+  });
   persistSession(data);
   return data;
+}
+
+export function beginGoogleSignIn() {
+  if (!appConfig.apiBaseUrl) {
+    throw new Error("Google sign-in will be available after the Spring Boot API is configured.");
+  }
+
+  window.location.assign(`${appConfig.apiBaseUrl}/auth/google/start?purpose=signin`);
+}
+
+export function beginGmailConnection() {
+  if (!appConfig.apiBaseUrl) {
+    throw new Error("Gmail connection will be available after the Spring Boot API is configured.");
+  }
+
+  window.location.assign(`${appConfig.apiBaseUrl}/gmail/connect`);
 }

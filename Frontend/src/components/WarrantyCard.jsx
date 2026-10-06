@@ -1,9 +1,10 @@
 import { FileText } from "lucide-react";
+import { WarrantyActions } from "@/components/WarrantyActions";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { formatDate, getWarrantyStatus, daysUntil } from "@/utils/date";
 
-export function WarrantyCard({ warranty }) {
+export function WarrantyCard({ warranty, onDelete, onViewInvoice }) {
   const status = getWarrantyStatus(warranty.expiryDate);
 
   return (
@@ -11,6 +12,9 @@ export function WarrantyCard({ warranty }) {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h3 className="text-xl font-semibold text-white">{warranty.productName}</h3>
+          {warranty.brand || warranty.modelNumber ? (
+            <p className="mt-1 text-sm text-brand">{[warranty.brand, warranty.modelNumber].filter(Boolean).join(" · ")}</p>
+          ) : null}
           <p className="mt-2 text-sm text-slate-400">{warranty.notes || "No notes added yet."}</p>
         </div>
         <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
@@ -28,13 +32,16 @@ export function WarrantyCard({ warranty }) {
       </div>
 
       <div className="mt-6 flex items-center justify-between gap-3">
-        <p className="text-sm text-slate-300">{daysUntil(warranty.expiryDate)} days remaining</p>
+        <p className="text-sm text-slate-300">{daysUntil(warranty.expiryDate) < 0 ? "Expired" : `${daysUntil(warranty.expiryDate)} days remaining`}</p>
         {warranty.fileName ? (
           <span className="inline-flex items-center gap-2 text-sm text-brand">
             <FileText className="h-4 w-4" />
             {warranty.fileName}
           </span>
         ) : null}
+      </div>
+      <div className="mt-5">
+        <WarrantyActions warranty={warranty} onDelete={onDelete} onViewInvoice={onViewInvoice} />
       </div>
     </GlassCard>
   );

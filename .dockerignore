@@ -1,0 +1,13 @@
+.git
+**/node_modules
+**/dist
+**/target
+# Exclude the backend's local database, while retaining Frontend/src/data.
+Backend/data
+**/.env
+**/.env.*
+**/*.log
+**/test-results
+**/playwright-report
+**/.idea
+**/.vscode
